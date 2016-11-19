@@ -4,9 +4,9 @@ devel = 1
 BISON = bison
 FLEX = flex
 
-# CXX = g++
+CXX = g++ -std=c++11
 # CXX = OMPI_CXX=clang++ mpic++ -fno-color-diagnostics --stdlib=libc++ --std=c++11 -I/u/cseed/llvm-3.1/lib/c++/v1
-CXX = clang++ -fno-color-diagnostics --stdlib=libc++ --std=c++11
+#CXX = clang++ -fno-color-diagnostics --stdlib=libc++ --std=c++11
 
 INCLUDES = -I. -I/opt/local/include 
 

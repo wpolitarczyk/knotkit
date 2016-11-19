@@ -1,8 +1,6 @@
 
 #include <knotkit.h>
 
-#define HOME "/Users/josh/Documents/code/knotkit/"
-
 bool verbose = 0;
 
 static const struct {

@@ -155,7 +155,7 @@ class Z
     return mpz_divisible_p (num.impl->x, impl->x);
   }
   bool operator | (const Z &num) const { return divides (num); }
-  
+
   Z divide_exact (const Z &denom) const
   {
     // num = *this
