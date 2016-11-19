@@ -1,3 +1,5 @@
+#ifndef _KNOTKIT_ALGEBRA_H
+#define _KNOTKIT_ALGEBRA_H
 #include <lib/lib.h>
 
 #ifdef DEBUG_ALGEBRA
@@ -73,3 +75,5 @@ enum variable { VARIABLE };
 
 #include <algebra/module.h>
 #include <algebra/linear_combination.h>
+
+#endif // _KNOTKIT_ALGEBRA_H

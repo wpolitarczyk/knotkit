@@ -1,3 +1,5 @@
+#ifndef _KNOTKIT_SIMPLIFY_CHAIN_COMPLEX_H
+#define _KNOTKIT_SIMPLIFY_CHAIN_COMPLEX_H
 
 template<class R> class simplified_complex_generators
 {
@@ -247,3 +249,5 @@ chain_complex_simplifier<R>::chain_complex_simplifier (ptr<const module<R> > C_,
   assert (new_d.compose (pi) == pi.compose (d));
   assert (pi.compose (iota) == mod_map<R> (new_C, 1));
 }
+
+#endif // _KNOTKIT_SIMPLIFY_CHAIN_COMPLEX_H

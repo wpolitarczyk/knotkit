@@ -27,7 +27,9 @@ KNOTKIT_OBJS = planar_diagram.o dt_code.o knot_diagram.o cube.o steenrod_square.
   knot_parser/knot_parser.o knot_parser/knot_scanner.o \
   rd_parser/rd_parser.o rd_parser/rd_scanner.o
 
-COMMON_OBJS = $(KNOTKIT_OBJS) $(ALGEBRA_OBJS) $(LIB_OBJS) 
+PERIODICITY_OBJS = periodicity.o
+
+COMMON_OBJS = $(KNOTKIT_OBJS) $(ALGEBRA_OBJS) $(LIB_OBJS) $(PERIODICITY_OBJS)
 
 LIB_HEADERS = lib/lib.h lib/show.h lib/refcount.h lib/pair.h lib/maybe.h lib/vector.h \
   lib/set_wrapper.h lib/set.h lib/hashset.h \
@@ -44,6 +46,8 @@ KNOTKIT_HEADERS = knotkit.h planar_diagram.h dt_code.h knot_diagram.h \
   smoothing.h cobordism.h cube.h steenrod_square.h \
   spanning_tree_complex.h cube_impl.h sseq.h simplify_chain_complex.h
 
+PERIODICITY_HEADERS = periodicity.h
+
 LIBS = -lgmpxx -lgmp  -lz
 
 all: kk
@@ -55,7 +59,7 @@ all: kk
 	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 kk: kk.o $(COMMON_OBJS)
-	$(CXX) $(LDFLAGS) -o kk $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -pg -o kk $^ $(LIBS)
 
 main: main.o $(COMMON_OBJS)
 	$(CXX) $(LDFLAGS) -o main $^ $(LIBS)
@@ -115,6 +119,7 @@ realclean: clean
 
 $(LIB_OBJS): $(LIB_HEADERS)
 $(ALGEBRA_OBJS): $(ALGEBRA_HEADERS) $(LIB_HEADERS)
-$(KNOTKIT_OBJS) main.o mpimain.o kk.o: $(KNOTKIT_HEADERS) $(ALGEBRA_HEADERS) $(LIB_HEADERS)
+$(KNOTKIT_OBJS) main.o mpimain.o kk.o: $(KNOTKIT_HEADERS) $(ALGEBRA_HEADERS) $(LIB_HEADERS) $(PERIODICITY_HEADERS)
+$(PERIODICITY_OBJS) : $(PERIODICITY_HEADERS)
 
 mpimain.o mpi_aux.o: mpi_aux.h

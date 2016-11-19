@@ -1,6 +1,10 @@
-
+#ifndef _KNOTKIT_PLANAR_DIAGRAM_H
+#define _KNOTKIT_PLANAR_DIAGRAM_H
 /* Planar diagram of a knot.  For details, see:
    http://katlas.org/wiki/Planar_Diagrams */
+
+#include <lib/vector.h>
+#include <string>
 
 class planar_diagram
 {
@@ -27,3 +31,5 @@ public:
   void show_self () const { printf ("planar_diagram %s", name.c_str ()); }
   void display_self () const;
 };
+
+#endif // _KNOTKIT_PLANAR_DIAGRAM_H

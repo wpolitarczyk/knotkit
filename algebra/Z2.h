@@ -1,5 +1,6 @@
 #ifndef KNOTKIT_ALGEBRA_Z2_H
 #define KNOTKIT_ALGEBRA_Z2_H
+#include <algebra/Z.h>
 #include <iostream>
 #include <tuple>
 #include <cassert>
@@ -8,7 +9,6 @@ class Z2
 {
  public:
   using linear_combination = ::linear_combination<Z2>;
-  // typedef linear_combination_iter<Z2> linear_combination_iter;
   using linear_combination_const_iter = ::linear_combination_const_iter<Z2>;
   
  private:
@@ -24,6 +24,7 @@ class Z2
     x.v = 0;
   }
   Z2 (reader &r) { v = r.read_bool (); }
+  Z2 (const Z& z) : v((z % 2).get_ui()) {}
   ~Z2 () { }
   
   Z2& operator = (const Z2& x) { v = x.v; return *this; }
@@ -88,5 +89,4 @@ class Z2
   void show_self () const { std::cout << *this; }
   void display_self () const { std::cout << *this << "\n"; }
 };
-
 #endif //KNOTKIT_ALGEBRA_Z2_H

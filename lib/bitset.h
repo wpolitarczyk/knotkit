@@ -1,3 +1,8 @@
+#ifndef _KNOTKIT_LIB_BITSET_H
+#define _KNOTKIT_LIB_BITSET_H
+
+#include <lib/lib.h>
+#include <lib/vector.h>
 
 typedef uint64 word_t;
   
@@ -136,3 +141,5 @@ bitset::operator % (unsigned i) const
   unsigned b = (i - 1) & word_bit_mask;
   return word_bittest (v[w], b + 1);
 }
+
+#endif // _KNOTKIT_LIB_BITSET_H

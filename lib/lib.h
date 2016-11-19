@@ -1,3 +1,5 @@
+#ifndef _KNOTKIT_LIB_LIB_H
+#define _KNOTKIT_LIB_LIB_H
 
 #include <assert.h>
 #include <stdlib.h>
@@ -235,3 +237,5 @@ public:
   map<unsigned, unsigned> io_id_id;
   
 };
+
+#endif // _KNOTKIT_LIB_LIB_H

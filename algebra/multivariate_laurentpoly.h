@@ -1,4 +1,7 @@
-
+#ifndef _KNOTKIT_ALGEBRA_MULTIVARIATE_LAURENPOLY_H
+#define _KNOTKIT_ALGEBRA_MULTIVARIATE_LAURENPOLY_H
+#include <sstream>
+#include <string>
 /* multivariate polynomial in a (vector) variable x with coefficients
    in T. */
 
@@ -133,17 +136,31 @@ class multivariate_laurent_monomial
     if (e != 0)
       m.push (j, e);
   }
-  
+
+  std::string to_string() const {
+    std::ostringstream res;
+    for (map<unsigned, int>::const_iter i = m; i; i ++) {
+      assert (i.val () != 0);
+      if (i.val () == 1) {
+	res << "x" << std::to_string(i.key()); 
+      }
+      else {
+	res << "x"
+	    << std::to_string(i.key())
+	    << "^"
+	    << std::to_string(i.val());
+      }
+    }
+    return res.str();
+  }
+
+  friend std::ostream& operator << (std::ostream& os, const multivariate_laurent_monomial& m) {
+    return os << m.to_string();
+  }
+    
   void show_self () const
   {
-    for (map<unsigned, int>::const_iter i = m; i; i ++)
-      {
-	assert (i.val () != 0);
-	if (i.val () == 1)
-	  printf ("x%d", i.key ());
-	else
-	  printf ("x%d^%d", i.key (), i.val ());
-      }
+    std::cout << *this;
   }
   
   void write_self (writer &w) const { write (w, m); }
@@ -161,12 +178,11 @@ template<class T>
 class multivariate_laurentpoly
 {
  public:
-  typedef ::linear_combination<multivariate_laurentpoly<T> > linear_combination;
-  typedef ::linear_combination_const_iter<multivariate_laurentpoly<T> >
-    linear_combination_const_iter;
+  using linear_combination = ::linear_combination<multivariate_laurentpoly<T>>;
+  using linear_combination_const_iter = ::linear_combination_const_iter<multivariate_laurentpoly<T> >;
   
  public:
-  typedef multivariate_laurent_monomial monomial;
+  using monomial = multivariate_laurent_monomial;
   
   map<monomial, T> coeffs;
   
@@ -216,13 +232,15 @@ class multivariate_laurentpoly
     if (c != 0)
       coeffs.push (m, c);
   }
+
+  template<class U>
+  multivariate_laurentpoly (const multivariate_laurentpoly<U>& pol);
   
   multivariate_laurentpoly (const multivariate_laurentpoly &p) : coeffs(p.coeffs) { }
   multivariate_laurentpoly (copy, const multivariate_laurentpoly &p)
     // ??? COPY2?
     : coeffs(COPY, p.coeffs)
-  {
-  }
+  {}
 
   multivariate_laurentpoly (reader &r) : coeffs(r) { }
   
@@ -294,6 +312,7 @@ class multivariate_laurentpoly
   
   unsigned card () const { return coeffs.card (); }
   pair<monomial, T> head () const { return coeffs.head (); }
+  pair<monomial, T> tail() const { return coeffs.tail(); }
   
   multivariate_laurentpoly &operator += (const multivariate_laurentpoly &p);
   multivariate_laurentpoly &operator -= (const multivariate_laurentpoly &p);
@@ -345,17 +364,32 @@ class multivariate_laurentpoly
 #ifndef NDEBUG
   void check () const;
 #endif
+
+  multivariate_laurentpoly evaluate(T val, unsigned index) const;
   
   static void show_ring ()
   {
     T::show_ring ();
     printf ("[x_1^+/-1, ..., x_n^+/-1]");
   }
-  
-  void display_self () const { show_self (); newline (); }
-  void show_self () const;
+
+  std::string to_string() const;
+  void display_self () const {
+    std::cout << *this << "\n";
+  }
+  void show_self () const {
+    std::cout << *this;
+  }
   void write_self (writer &w) const { write (w, coeffs); }
 };
+
+template<class T> template<class U>
+multivariate_laurentpoly<T>::multivariate_laurentpoly(const multivariate_laurentpoly<U>& pol) {
+  for(typename map<monomial, U>::const_iter i = pol.coeffs; i; i++) {
+    if(T(i.val()) != 0)
+      coeffs.push(i.key(), T(i.val()));
+  }
+}
 
 template<class T> multivariate_laurentpoly<T>
 operator * (const T &s, const multivariate_laurentpoly<T> &p)
@@ -444,42 +478,50 @@ multivariate_laurentpoly<T>::check () const
 }
 #endif
 
-template<class T> void
-multivariate_laurentpoly<T>::show_self () const
-{
+template<class T>
+std::string multivariate_laurentpoly<T>::to_string() const {
+  std::ostringstream res;
   unsigned first = 1;
-  for (typename map<monomial, T>::const_iter i = coeffs; i; i ++)
-    {
-      monomial m = i.key ();
-      T c = i.val ();
+  for (typename map<monomial, T>::const_iter i = coeffs; i; i ++) {
+    monomial m = i.key ();
+    T c = i.val ();
+    assert (c != 0);
+
+    if (first)
+      first = 0;
+    else
+      res << " + ";
       
-      assert (c != 0);
-      
-      if (first)
-	first = 0;
+    if (m == 1) {
+      if (c == 1)
+	res << "1";
       else
-	printf (" + ");
-      
-      if (m == 1)
-	{
-	  if (c == 1)
-	    printf ("1");
-	  else
-	    show (c);
-	}
-      else
-	{
-	  if (c != 1)
-	    {
-	      show (c);
-	      printf ("*");
-	    }
-	  
-	  show (m);
-	}
+	res << c;
     }
+    else {
+      if (c != 1) {
+	res << c << "*";
+      }
+      res << m;
+    }
+  }
   if (first)
-    printf ("0");
+    res << "0";
+  return res.str();
+}
+
+template<class T>
+std::ostream& operator << (std::ostream& os, const multivariate_laurentpoly<T>& pol) {
+  return os << pol.to_string();
+}
+
+template<class T, class U>
+multivariate_laurentpoly<T> reduce(const multivariate_laurentpoly<U>& pol) {
+  multivariate_laurentpoly<T> res;
+  for(typename map<unsigned, U>::const_iter i = pol.coeffs; i; i++) {
+    res += multivariate_laurentpoly<T>(i.val(), i.key());
+  }
+  return res;
 }
 
 // functions below were added to verify several periodicity criteria
@@ -507,29 +549,23 @@ multivariate_laurentpoly<T> invert_variable(const multivariate_laurentpoly<T>& p
 }
 
 template<class T>
-bool check_przytycki_cong(const multivariate_laurentpoly<T>& pol, const int prime,
-			  const int exponent = 1, const unsigned index = 1) {
-  multivariate_laurentpoly<T> result;
-  for(typename map<multivariate_laurent_monomial, T>::const_iter i = pol.coeffs; i; i++) {
-    multivariate_laurent_monomial mon = i.key();
-    T c = i.val();
-    multivariate_laurent_monomial mon2;
-    for(typename map<unsigned, int>::const_iter i = mon.m; i; i++) {
-      // still need to handle the coefficient
-      // i.e. we need to take c % p
-      if(i.key() == index) {
-	int v = i.val() % (2 * prime);
-	if(v < 0) v += (2 * prime);
-	mon2 *= multivariate_laurent_monomial(VARIABLE, i.key(), v);
-	c.display_self();
-	printf("Old: key = %d, val = %d\n", i.key(), i.val());
-	printf("New: key = %d, val = %d\n", i.key(), v);
-      }
-      else
-	mon2 *= multivariate_laurent_monomial(VARIABLE, i.key(), i.val());
+multivariate_laurentpoly<T>
+multivariate_laurentpoly<T>::evaluate(T val, unsigned index) const {
+  using polynomial = multivariate_laurentpoly<T>;
+  using monomial = multivariate_laurent_monomial;
+  polynomial res;
+  for(typename map<monomial, T>::const_iter i = coeffs; i; i++) {
+    if(i.key().m % index) {
+      int exp = i.key().m[index];
+      monomial mon = i.key();
+      mon.m.yank(index);
+      polynomial temp = polynomial(i.val() * pow(val, exp), mon);
+      res += temp;
     }
-    result += multivariate_laurentpoly<T>(c, mon2);
+    else
+      res += polynomial(i.val(), i.key());
   }
-  result.display_self();
-  return true;
+  return res;
 }
+
+#endif // _KNOTKIT_ALGEBRA_MULTIVARIATE_LAURENPOLY_H

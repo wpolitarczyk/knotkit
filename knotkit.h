@@ -1,3 +1,5 @@
+#ifndef _KNOTKIT_KNOTKIT_H
+#define _KNOTKIT_KNOTKIT_H
 
 // includes lib.h
 #include <algebra/algebra.h>
@@ -123,3 +125,5 @@ resolution_diagram parse_resolution_diagram (const char *s);
 
 // 11 <= n <= 15
 basedvector<basedvector<unsigned, 1>, 1> mutant_knot_groups (unsigned n);
+
+#endif // _KNOTKIT_KNOTKIT_H

@@ -1,4 +1,8 @@
 #include <knotkit.h>
+#include <periodicity.h>
+#include <fstream>
+#include <vector>
+#include <utility>
 
 const char *program_name;
 
@@ -70,9 +74,10 @@ void tex_footer ()
 const char *knot = 0;
 const char *invariant = 0;
 const char *field = "Z2";
+std::string periodicity_test = "Przytycki"; 
+int period = 5;
 
 knot_diagram kd;
-
 bool reduced = 0;
 
 class hg_grading_mapper
@@ -250,44 +255,196 @@ compute_gss ()
   tex_footer ();
 }
 
-multivariate_laurentpoly<Z> compute_jones(const knot_diagram& k, bool reduced) {
-  cube<Z2> c(kd, reduced);
-  ptr<const module<Z2> > C = c.khC;
-  mod_map<Z2> d = c.compute_d(1, 0, 0, 0, 0);
-  chain_complex_simplifier<Z2> s(C, d, maybe<int>(1), maybe<int>(0));
+template<class R>
+multivariate_laurentpoly<Z> compute_khp(const knot_diagram& k, bool reduced = false) {
+  cube<R> c (kd, reduced);
+  ptr<const module<R> > C = c.khC;
+  mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
+    
+  unsigned m = kd.num_components ();
+  hg_grading_mapper mapper (m);
+      
+  chain_complex_simplifier<R> s (C, d,
+				     maybe<int> (1), maybe<int> (0));
   C = s.new_C;
   d = s.new_d;
-  multivariate_laurentpoly<Z> jones;
-  for(uint i = 1; i <= c.n_generators; ++i) {
-    grading gr = c.compute_generator_grading(i);
-    if(gr.h % 2 == 0) {
-      jones += multivariate_laurentpoly<Z>(1, VARIABLE, 1, gr.q);
-    }
-    else {
-      jones += multivariate_laurentpoly<Z>(-1, VARIABLE, 1, gr.q);
-    }
-  }
-  return jones;
+  return C->free_poincare_polynomial();
+}
+
+multivariate_laurentpoly<Z> compute_jones(const knot_diagram& k, bool reduced = false) {
+  return compute_khp<Z2>(k, reduced).evaluate(-1,1);  
 }
 
 template<class R>
-multivariate_laurentpoly<Z> compute_khp(const knot_diagram& k, bool reduced) {
-  cube<R> c(kd,reduced);
-  ptr<const module<R> > C = c.khC;
-  mod_map<R> d = c.compute_d(1, 0, 0, 0, 0);
-  chain_complex_simplifier<R> s(C, d, maybe<int>(1), maybe<int>(0));
-  C = s.new_C;
-  d = s.new_d;
-  multivariate_laurentpoly<Z> khp;
-  for(uint i = 1; i <= C->dim(); ++i) {
-    grading gr = C->generator_grading(i);
-    multivariate_laurentpoly<Z> p1 = multivariate_laurentpoly<Z>(1, VARIABLE, 0, gr.h);
-    multivariate_laurentpoly<Z> p2 = multivariate_laurentpoly<Z>(1, VARIABLE, 1, gr.q);
-    multivariate_laurentpoly<Z> p3 = p1 * p2;
-    khp += p3;
+int compute_s_inv(knot_diagram& kd) {
+  unsigned m = kd.num_components ();
+  if (m != 1) {
+    fprintf (stderr, "error: s-invariant only defined for knots\n");
+    exit (EXIT_FAILURE);
   }
-  return khp;
+      
+  cube<R> c (kd, 0);
+  ptr<const module<R> > C = c.khC;
+      
+  mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
+  for (unsigned i = 1; i <= kd.n_crossings; i ++)
+    d = d + c.H_i (i);
+  assert (d.compose (d) == 0);
+      
+  int k = 0;
+  for (;;) {
+    chain_complex_simplifier<R> s (C, d,
+				   maybe<int> (1),
+				   maybe<int> (2*k));
+    C = s.new_C;
+    d = s.new_d;
+    k ++;
+	  
+    if (d == 0)
+      break;
+  }
+      
+  assert (C->dim () == 2);
+  grading gr1 = C->generator_grading (1),
+    gr2 = C->generator_grading (2);
+  C->free_poincare_polynomial().display_self();
+  int qmin = gr1.q,
+    qmax = gr2.q;
+  if (qmax < qmin)
+    std::swap (qmin, qmax);
+      
+  assert (qmax == qmin + 2);
+  return qmin + 1;
 }
+
+void check_periodicity(std::string out_file) {
+  if(period == 2 || period == 3) {
+    std::cout << "Sorry, the criteria don't work for period "
+	      << period << "...\n";
+    exit(EXIT_FAILURE);
+  }
+  auto result = std::find(primes_list.begin(), primes_list.end(), period);
+  if(result == primes_list.end()) {
+    std::cout << "For now you can only check periodicity for primes up to 31..." << "\n";
+    exit(EXIT_FAILURE);
+  }
+  std::ofstream out(out_file);
+  
+  if(periodicity_test == "all") {
+    std::cout << "I will perform both test..." << "\n";
+  }
+  else if(periodicity_test == "Przytycki") {
+    switch(period) {
+    case 5: {
+      Przytycki_periodicity_checker<5> pcc;
+      if(out_file.size() != 0)
+	out << pcc(compute_jones(kd)) << std::endl;
+      else
+	std::cout << pcc(compute_jones(kd)) << std::endl;
+      break;
+    }
+    case 7: {
+      Przytycki_periodicity_checker<7> pcc;
+      if(out_file.size() != 0)
+	out << pcc(compute_jones(kd)) << std::endl;
+      else
+	std::cout << pcc(compute_jones(kd)) << std::endl;
+      break;
+    }
+    case 11: {
+      Przytycki_periodicity_checker<11> pcc;
+      if(out_file.size() != 0)
+	out << pcc(compute_jones(kd)) << std::endl;
+      else
+	std::cout << pcc(compute_jones(kd)) << std::endl;
+      break;
+    }
+    case 13: {
+      Przytycki_periodicity_checker<13> pcc;
+      if(out_file.size() != 0)
+	out << pcc(compute_jones(kd)) << std::endl;
+      else
+	std::cout << pcc(compute_jones(kd)) << std::endl;
+      break;
+    }
+    case 17: {
+      Przytycki_periodicity_checker<17> pcc;
+      if(out_file.size() != 0)
+	out << pcc(compute_jones(kd)) << std::endl;
+      else
+	std::cout << pcc(compute_jones(kd)) << std::endl;
+      break;
+    }
+    case 19: {
+      Przytycki_periodicity_checker<19> pcc;
+      if(out_file.size() != 0)
+	out << pcc(compute_jones(kd)) << std::endl;
+      else
+	std::cout << pcc(compute_jones(kd)) << std::endl;
+      break;
+    }
+    }
+  }
+  else if(periodicity_test == "Kh") {
+    Kh_periodicity_checker pc(kd);
+    if(out_file.size() != 0)
+      out << pc(period) << std::endl;
+    else
+      std::cout << pc(period) << std::endl;
+  }
+  else {
+    std::cout << "Sorry, I don't recognize this option..." << "\n";
+    exit(EXIT_FAILURE);
+  }
+}
+
+
+// template<class R>
+// void check_periodicity_criterion(knot_diagram kd, int prime = 5, Test_type t){
+  // using monomial = multivariate_laurent_monomial;
+  // using polynomial = multivariate_laurentpoly<Z>;
+  // unsigned m = kd.num_components();
+  // if(m != 1) {
+  //   std::cerr << "Error: for now this only works for knots\n";
+  //   exit(EXIT_FAILURE);
+  // }
+  // polynomial khp, lee_p;
+  // // Adding braces so that the cube can be destroyed
+  // // when its not needed anymore
+  // { 
+  //   cube<R> c(kd,0);
+  //   ptr<const module<R>> C = c.khC;
+  //   mod_map<R> d = c.compute_d(1, 0, 0, 0, 0);
+  //   for(unsigned i = 1; i <= kd.n_crossings; i++)
+  //     d = d + c.H_i(i);
+  //   assert (d.compose(d) == 0);
+
+  //   // computing Khovanov homology
+  //   if(verbose)
+  //     std::cout << "Computing Khovanov polynomial..." << "\n";
+  //   chain_complex_simplifier<R> s(C, d, maybe<int>(1), maybe<int>(0));
+  //   C = s.new_C;
+  //   d = s.new_d;
+  //   khp = C->free_poincare_polynomial();
+
+  //   // computing Lee homology
+  //   if(verbose)
+  //     std::cout << "Computing Lee polynomial..." << "\n";
+  //   chain_complex_simplifier<R> s1(C, d, maybe<int>(1), maybe<int>(2));
+  //   C = s1.new_C;
+  //   d = s1.new_d;
+  //   assert(C->dim() == 2);
+  //   lee_p = C->free_poincare_polynomial();
+  // }
+  // if(verbose) {
+  //   std::cout << "Khovanov polynomial = "
+  // 	      << khp << "\n"
+  // 	      << "Lee polynomial = "
+  // 	      << lee_p << "\n";
+  // }
+  // periodicity_checker pc(khp, lee_p, prime, t);
+  // pc();
+// }
 
 template<class R> void
 compute_invariant ()
@@ -413,48 +570,10 @@ compute_invariant ()
       tex_footer ();
     }
   else if (!strcmp (invariant, "s"))
-    {
-      unsigned m = kd.num_components ();
-      if (m != 1)
-	{
-	  fprintf (stderr, "error: s-invariant only defined for knots\n");
-	  exit (EXIT_FAILURE);
-	}
-      
-      cube<R> c (kd, 0);
-      ptr<const module<R> > C = c.khC;
-      
-      mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
-      for (unsigned i = 1; i <= kd.n_crossings; i ++)
-	d = d + c.H_i (i);
-      assert (d.compose (d) == 0);
-      
-      int k = 0;
-      for (;;)
-	{
-	  chain_complex_simplifier<R> s (C, d,
-					 maybe<int> (1), maybe<int> (2*k));
-	  C = s.new_C;
-	  d = s.new_d;
-	  k ++;
-	  
-	  if (d == 0)
-	    break;
-	}
-      
-      assert (C->dim () == 2);
-      grading gr1 = C->generator_grading (1),
-	gr2 = C->generator_grading (2);
-      
-      int qmin = gr1.q,
-	qmax = gr2.q;
-      if (qmax < qmin)
-	std::swap (qmin, qmax);
-      
-      assert (qmax == qmin + 2);
-      
-      fprintf (outfp, "s(%s; %s) = %d\n", knot, field, qmin + 1);
-    }
+  {
+    int s = compute_s_inv<R>(kd);  
+    fprintf (outfp, "s(%s; %s) = %d\n", knot, field, s);
+  }
   else 
     {
       fprintf (stderr, "error: unknown invariant %s\n", invariant);
@@ -617,69 +736,73 @@ main (int argc, char **argv)
   
   const char *file = 0;
   
-  for (int i = 1; i < argc; i ++)
-    {
-      if (argv[i][0] == '-')
-	{
-	  if (strcmp (argv[i], "-r") == 0)
-	    reduced = 1;
-	  else if (strcmp (argv[i], "-h") == 0)
-	    {
-	      usage ();
-	      exit (EXIT_SUCCESS);
-	    }
-		else if (strcmp (argv[i], "-demo") == 0)
-    {
-      run_demo();
-      exit (EXIT_SUCCESS);
-    }	  
-	  else if (!strcmp (argv[i], "-v"))
-	    verbose = 1;
-	  else if (!strcmp (argv[i], "-f"))
-	    {
-	      i ++;
-	      if (i == argc)
-		{
-		  fprintf (stderr, "error: missing argument to option `-f'\n");
-		  exit (EXIT_FAILURE);
-		}
-	      field = argv[i];
-	    }
-	  else if (!strcmp (argv[i], "-o"))
-	    {
-	      i ++;
-	      if (i == argc)
-		{
-		  fprintf (stderr, "error: missing argument to option `-o'\n");
-		  exit (EXIT_FAILURE);
-		}
-	      file = argv[i];
-	    }
-	  else
-	    {
-	      fprintf (stderr, "error: unknown argument `%s'\n", argv[1]);
-	      fprintf (stderr, "  use -h for usage\n");
-	      exit (EXIT_FAILURE);
-	    }
+  for (int i = 1; i < argc; i ++) {
+    if (argv[i][0] == '-') {
+      if (strcmp (argv[i], "-r") == 0)
+	reduced = 1;
+      else if (strcmp (argv[i], "-h") == 0) {
+        usage ();
+        exit (EXIT_SUCCESS);
+      }
+      else if (strcmp (argv[i], "-demo") == 0) {
+	run_demo();
+	exit (EXIT_SUCCESS);
+      }	  
+      else if (!strcmp (argv[i], "-v"))
+	verbose = 1;
+      else if (!strcmp (argv[i], "-f")) {
+	i ++;
+	if (i == argc) {
+	  fprintf (stderr, "error: missing argument to option `-f'\n");
+	  exit (EXIT_FAILURE);
 	}
-      else
-	{
-	  if (knot)
-	    {
-	      fprintf (stderr, "error: too many arguments\n");
-	      fprintf (stderr, "  use -h for usage\n");
-	      exit (EXIT_FAILURE);
-	    }
-	  else if (invariant)
-	    knot = argv[i];
-	  else
-	    {
-	      assert (invariant == 0);
-	      invariant = argv[i];
-	    }
+	field = argv[i];
+      }
+      else if (!strcmp (argv[i], "-o")) {
+	i ++;
+	if (i == argc) {
+	  fprintf (stderr, "error: missing argument to option `-o'\n");
+	  exit (EXIT_FAILURE);
 	}
+	file = argv[i];
+      }
+      else if(!strcmp (argv[i], "-p")) {
+	i++;
+	if(i == argc) {
+	  fprintf (stderr, "error: missing argument to option `-o'\n");
+	  exit (EXIT_FAILURE);
+	}
+	period = std::stoi(argv[i]);
+      }
+      else if (!strcmp(argv[i], "-t")) {
+	i++;
+	if(i == argc) {
+	  fprintf (stderr, "error: missing argument to option `-o'\n");
+	  exit (EXIT_FAILURE);
+	}
+	periodicity_test = argv[i];
+      }
+      else {
+	fprintf (stderr, "error: unknown argument `%s'\n", argv[1]);
+	fprintf (stderr, "  use -h for usage\n");
+	exit (EXIT_FAILURE);
+      }
     }
-  
+    else {
+      if (knot) {
+	fprintf (stderr, "error: too many arguments\n");
+	fprintf (stderr, "  use -h for usage\n");
+	exit (EXIT_FAILURE);
+      }
+      else if (invariant)
+	knot = argv[i];
+      else {
+	assert (invariant == 0);
+	invariant = argv[i];
+      }
+    }
+  }
+ 
   if (!knot)
     {
       fprintf (stderr, "error: too few arguments, <invariant> or <knot> missing\n");
@@ -687,15 +810,13 @@ main (int argc, char **argv)
       exit (EXIT_FAILURE);
     }
   
-  if (file)
-    {
-      outfp = fopen (file, "w");
-      if (!outfp)
-	{
-	  stderror ("fopen: %s", file);
-	  exit (EXIT_FAILURE);
-	}
+  if (file) {
+    outfp = fopen (file, "w");
+    if (!outfp) {
+      stderror ("fopen: %s", file);
+      exit (EXIT_FAILURE);
     }
+  }
   else
     outfp = stdout;
   
@@ -740,36 +861,31 @@ main (int argc, char **argv)
       compute_gss ();
     }
   else if(!strcmp(invariant, "jones")) {
-    multivariate_laurentpoly<Z> jones_pol = compute_jones(kd, reduced);
-    printf("Jones polynomial of %s is equal to (coefficients in %s):\n", knot, field);
-    jones_pol.display_self();
+    std::cout << "Jones polynomial of " << knot << " = " << compute_jones(kd, reduced) << "\n";
   }
-  else if(!strcmp(invariant, "przytycki_cong")) {
-    // need to add a commandline switch to be able to read
-    // symmetry order
-    multivariate_laurentpoly<Z> jones_pol = compute_jones(kd, reduced);
-    multivariate_laurentpoly<Z> inv_jones_pol = invert_variable(jones_pol,1);
-    jones_pol.display_self();
-    inv_jones_pol.display_self();
-    multivariate_laurentpoly<Z> diff = jones_pol - inv_jones_pol;
-    diff.display_self();
-    check_przytycki_cong(diff, 3);
+  else if(!strcmp(invariant, "periodicity")) {
+    check_periodicity((file ? std::string(file) : std::string()));
   }
   else if(!strcmp(invariant, "khp")) {
     multivariate_laurentpoly<Z> khp;
     if(!strcmp(field, "Z2"))
       khp = compute_khp<Z2>(kd, reduced);
     else if(!strcmp(field, "Z3"))
-      khp = compute_khp<Zp<3> >(kd, reduced);
+      khp = compute_khp<Zp<3>>(kd, reduced);
+    else if(!strcmp(field, "Z5"))
+      khp = compute_khp<Zp<5>>(kd, reduced);
+    else if (!strcmp(field, "Z7"))
+      khp = compute_khp<Zp<7>>(kd,reduced);
     else if(!strcmp(field, "Q"))
       khp = compute_khp<Q>(kd, reduced);
     else
     {
-      fprintf (stderr, "error: unknown field %s\n", field);
+      std::cerr << "Unknown field: " << field << std::endl;
       exit (EXIT_FAILURE);
     }
-    printf("Khovanov polynomial of %s is equal to (coefficients %s):\n", knot, field);
-    khp.display_self();
+    std::cout << "Khovanov polynomial (coefficients in " << field
+	      << ") of " << knot <<  " = " << std::endl
+	      << khp << std::endl;
   }
   else
     {

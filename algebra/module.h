@@ -1,4 +1,5 @@
-
+#ifndef _KNOTKIT_ALGEBRA_MODULE_H
+#define _KNOTKIT_ALGEBRA_MODULE_H
 template<class R> class mod_map;
 
 template<class R> class mod_span;
@@ -85,8 +86,10 @@ class module : public refcounted
   ptr<const quotient_module<R> > quotient (ptr<const free_submodule<R> > m) const;
   
   ptr<const free_submodule<R> > submodule (const mod_span<R> &span) const;
-  
+
   multivariate_laurentpoly<Z> free_poincare_polynomial () const;
+  template<unsigned p>
+  multivariate_laurentpoly<Zp<p>> free_poincare_polynomial () const;
   multivariate_laurentpoly<Z> free_delta_poincare_polynomial () const;
   multivariate_laurentpoly<Z> free_ell_poincare_polynomial () const;
   
@@ -1476,6 +1479,20 @@ module<R>::free_poincare_polynomial () const
   return r;
 }
 
+template<class R> template <unsigned p> multivariate_laurentpoly<Zp<p>>
+module<R>::free_poincare_polynomial() const {
+  multivariate_laurentpoly<Zp<p>> r;
+  for (unsigned i = 1; i <= free_rank (); i ++)
+    {
+      grading hq = generator_grading (i);
+      multivariate_laurent_monomial m;
+      m.push_exponent (1, hq.h);
+      m.push_exponent (2, hq.q);
+      r.muladdeq (1, m);
+    }
+  return r;
+}
+
 template<class R> multivariate_laurentpoly<Z>
 module<R>::free_delta_poincare_polynomial () const
 {
@@ -2130,3 +2147,5 @@ reader::read_mod ()
       return module<R>::reader_id_module(id);
     }
 }
+
+#endif // _KNOTKIT_ALGEBRA_MODULE_H

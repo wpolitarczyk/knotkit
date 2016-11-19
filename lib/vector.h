@@ -1,3 +1,7 @@
+#ifndef _KNOTKIT_LIB_VECTOR_H
+#define _KNOTKIT_LIB_VECTOR_H
+
+#include <lib/lib.h>
 
 template<class T>
 class vector
@@ -386,3 +390,5 @@ public:
   unsigned lower_bound (const T &v) const { return vector<T>::lower_bound (v) + B; }
   unsigned upper_bound (const T &v) const { return vector<T>::upper_bound (v) + B; }
 };
+
+#endif // _KNOTKIT_LIB_VECTOR_H

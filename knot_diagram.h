@@ -1,3 +1,7 @@
+#ifndef _KNOTKIT_KNOT_DIAGRAM_H
+#define _KNOTKIT_KNOT_DIAGRAM_H
+
+#include <planar_diagram.h>
 
 // for building knot_diagram
 inline unsigned edge_from_ept (unsigned e)
@@ -183,3 +187,5 @@ class knot_diagram
   void show_self () const;
   void display_self () const;
 };
+
+#endif // _KNOTKIT_KNOT_DIAGRAM_H

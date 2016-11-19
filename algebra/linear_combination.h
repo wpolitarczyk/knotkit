@@ -1,4 +1,5 @@
-
+#ifndef _KNOTKIT_ALGEBRA_LINEAR_COMBINATIONS_H
+#define _KNOTKIT_ALGEBRA_LINEAR_COMBINATIONS_H
 template<class R> class linear_combination_const_iter;
 
 template<class R>
@@ -512,3 +513,5 @@ class linear_combination_const_iter<Z2>
   unsigned key () const { return i.val (); }
   Z2 val () { return Z2 (1); }
 };
+
+#endif // _KNOTKIT_ALGEBRA_LINEAR_COMBINATIONS_H
