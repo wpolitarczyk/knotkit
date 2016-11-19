@@ -145,6 +145,24 @@ class Z
     }
   }
 
+  Z operator % (const Z& z) const {
+    if(Z(0) < z) {
+      // return Z(*impl.get() % *z.impl.get());
+      mpz_class r;
+      mpz_fdiv_r(r.get_mpz_t(), impl.get()->get_mpz_t(), z.impl.get()->get_mpz_t());
+      return Z(r);
+    }    
+    else
+      return *this;
+  }
+
+  Z operator % (unsigned p) const {
+    if(p != 0)
+      return operator % (Z(p));
+    else
+      return *this;
+  }
+
   Z recip () const {
     assert(is_unit());
     return *this;
@@ -234,6 +252,9 @@ class Z
   int get_count() const {
     return impl.use_count();
   }
-};
 
+  unsigned get_ui() const {
+    return impl.get()->get_ui();
+  }
+};
 #endif // _KNOTKIT_ALGEBRA_Z_H

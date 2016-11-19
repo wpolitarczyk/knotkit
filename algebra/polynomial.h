@@ -1,4 +1,5 @@
-
+#ifndef _KNOTKIT_ALGEBRA_POLYNOMIAL_H
+#define _KNOTKIT_ALGEBRA_POLYNOMIAL_H
 /* univariate polynomial in a single variable `x' with coefficients in
    T. */
 
@@ -512,3 +513,5 @@ class polynomial<Z2>
   void display_self () const { show_self (); newline (); }
   void show_self () const;
 };
+
+#endif // _KNOTKIT_ALGEBRA_POLYNOMIAL_H

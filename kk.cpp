@@ -1,4 +1,7 @@
+
 #include <knotkit.h>
+#include <vector>
+#include <utility>
 
 const char *program_name;
 
@@ -72,7 +75,6 @@ const char *invariant = 0;
 const char *field = "Z2";
 
 knot_diagram kd;
-
 bool reduced = 0;
 
 class hg_grading_mapper
@@ -250,43 +252,131 @@ compute_gss ()
   tex_footer ();
 }
 
-multivariate_laurentpoly<Z> compute_jones(const knot_diagram& k, bool reduced) {
+multivariate_laurentpoly<Z> compute_jones(const knot_diagram& k, bool reduced = false) {
+  using polynomial = multivariate_laurentpoly<Z>;
   cube<Z2> c(kd, reduced);
   ptr<const module<Z2> > C = c.khC;
   mod_map<Z2> d = c.compute_d(1, 0, 0, 0, 0);
   chain_complex_simplifier<Z2> s(C, d, maybe<int>(1), maybe<int>(0));
   C = s.new_C;
   d = s.new_d;
-  multivariate_laurentpoly<Z> jones;
+  polynomial jones;
   for(uint i = 1; i <= c.n_generators; ++i) {
     grading gr = c.compute_generator_grading(i);
     if(gr.h % 2 == 0) {
-      jones += multivariate_laurentpoly<Z>(1, VARIABLE, 1, gr.q);
+      jones += polynomial(1, VARIABLE, 1, gr.q);
     }
     else {
-      jones += multivariate_laurentpoly<Z>(-1, VARIABLE, 1, gr.q);
+      jones += polynomial(-1, VARIABLE, 1, gr.q);
     }
   }
   return jones;
 }
 
 template<class R>
-multivariate_laurentpoly<Z> compute_khp(const knot_diagram& k, bool reduced) {
-  cube<R> c(kd,reduced);
+multivariate_laurentpoly<Z> compute_khp(const knot_diagram& k, bool reduced = false) {
+  cube<R> c (kd, reduced);
   ptr<const module<R> > C = c.khC;
-  mod_map<R> d = c.compute_d(1, 0, 0, 0, 0);
-  chain_complex_simplifier<R> s(C, d, maybe<int>(1), maybe<int>(0));
+  mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
+    
+  unsigned m = kd.num_components ();
+  hg_grading_mapper mapper (m);
+      
+  chain_complex_simplifier<R> s (C, d,
+				     maybe<int> (1), maybe<int> (0));
   C = s.new_C;
   d = s.new_d;
-  multivariate_laurentpoly<Z> khp;
-  for(uint i = 1; i <= C->dim(); ++i) {
-    grading gr = C->generator_grading(i);
-    multivariate_laurentpoly<Z> p1 = multivariate_laurentpoly<Z>(1, VARIABLE, 0, gr.h);
-    multivariate_laurentpoly<Z> p2 = multivariate_laurentpoly<Z>(1, VARIABLE, 1, gr.q);
-    multivariate_laurentpoly<Z> p3 = p1 * p2;
-    khp += p3;
+  return C->free_poincare_polynomial();
+}
+
+template<class R>
+int compute_s_inv(knot_diagram& kd) {
+  unsigned m = kd.num_components ();
+  if (m != 1) {
+    fprintf (stderr, "error: s-invariant only defined for knots\n");
+    exit (EXIT_FAILURE);
   }
-  return khp;
+      
+  cube<R> c (kd, 0);
+  ptr<const module<R> > C = c.khC;
+      
+  mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
+  for (unsigned i = 1; i <= kd.n_crossings; i ++)
+    d = d + c.H_i (i);
+  assert (d.compose (d) == 0);
+      
+  int k = 0;
+  for (;;) {
+    chain_complex_simplifier<R> s (C, d,
+				   maybe<int> (1),
+				   maybe<int> (2*k));
+    C = s.new_C;
+    d = s.new_d;
+    k ++;
+	  
+    if (d == 0)
+      break;
+  }
+      
+  assert (C->dim () == 2);
+  grading gr1 = C->generator_grading (1),
+    gr2 = C->generator_grading (2);
+  C->free_poincare_polynomial().display_self();
+  int qmin = gr1.q,
+    qmax = gr2.q;
+  if (qmax < qmin)
+    std::swap (qmin, qmax);
+      
+  assert (qmax == qmin + 2);
+  return qmin + 1;
+}
+
+template<class R>
+void check_periodicity_criterion(knot_diagram kd, int prime = 5){
+  using monomial = multivariate_laurent_monomial;
+  using polynomial = multivariate_laurentpoly<Z>;
+  unsigned m = kd.num_components();
+  Test_type t = Test_type::all;
+  if(m != 1) {
+    std::cerr << "Error: for now this only works for knots\n";
+    exit(EXIT_FAILURE);
+  }
+  polynomial khp, lee_p;
+  // Adding braces so that the cube can be destroyed
+  // when its not needed anymore
+  { 
+    cube<R> c(kd,0);
+    ptr<const module<R>> C = c.khC;
+    mod_map<R> d = c.compute_d(1, 0, 0, 0, 0);
+    for(unsigned i = 1; i <= kd.n_crossings; i++)
+      d = d + c.H_i(i);
+    assert (d.compose(d) == 0);
+
+    // computing Khovanov homology
+    if(verbose)
+      std::cout << "Computing Khovanov polynomial..." << "\n";
+    chain_complex_simplifier<R> s(C, d, maybe<int>(1), maybe<int>(0));
+    C = s.new_C;
+    d = s.new_d;
+    khp = C->free_poincare_polynomial();
+
+    // computing Lee homology
+    if(verbose)
+      std::cout << "Computing Lee polynomial..." << "\n";
+    chain_complex_simplifier<R> s1(C, d, maybe<int>(1), maybe<int>(2));
+    C = s1.new_C;
+    d = s1.new_d;
+    assert(C->dim() == 2);
+    lee_p = C->free_poincare_polynomial();
+  }
+  if(verbose) {
+    std::cout << "Khovanov polynomial = "
+	      << khp << "\n"
+	      << "Lee polynomial = "
+	      << lee_p << "\n";
+  }
+  periodicity_checker pc = periodicity_checker(khp, lee_p, prime, t);
+  pc();
 }
 
 template<class R> void
@@ -413,48 +503,10 @@ compute_invariant ()
       tex_footer ();
     }
   else if (!strcmp (invariant, "s"))
-    {
-      unsigned m = kd.num_components ();
-      if (m != 1)
-	{
-	  fprintf (stderr, "error: s-invariant only defined for knots\n");
-	  exit (EXIT_FAILURE);
-	}
-      
-      cube<R> c (kd, 0);
-      ptr<const module<R> > C = c.khC;
-      
-      mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
-      for (unsigned i = 1; i <= kd.n_crossings; i ++)
-	d = d + c.H_i (i);
-      assert (d.compose (d) == 0);
-      
-      int k = 0;
-      for (;;)
-	{
-	  chain_complex_simplifier<R> s (C, d,
-					 maybe<int> (1), maybe<int> (2*k));
-	  C = s.new_C;
-	  d = s.new_d;
-	  k ++;
-	  
-	  if (d == 0)
-	    break;
-	}
-      
-      assert (C->dim () == 2);
-      grading gr1 = C->generator_grading (1),
-	gr2 = C->generator_grading (2);
-      
-      int qmin = gr1.q,
-	qmax = gr2.q;
-      if (qmax < qmin)
-	std::swap (qmin, qmax);
-      
-      assert (qmax == qmin + 2);
-      
-      fprintf (outfp, "s(%s; %s) = %d\n", knot, field, qmin + 1);
-    }
+  {
+    int s = compute_s_inv<R>(kd);  
+    fprintf (outfp, "s(%s; %s) = %d\n", knot, field, s);
+  }
   else 
     {
       fprintf (stderr, "error: unknown invariant %s\n", invariant);
@@ -753,14 +805,14 @@ main (int argc, char **argv)
     inv_jones_pol.display_self();
     multivariate_laurentpoly<Z> diff = jones_pol - inv_jones_pol;
     diff.display_self();
-    check_przytycki_cong(diff, 3);
+    check_przytycki_cong<Z,Zp<5>>(diff, 5);
   }
   else if(!strcmp(invariant, "khp")) {
     multivariate_laurentpoly<Z> khp;
     if(!strcmp(field, "Z2"))
       khp = compute_khp<Z2>(kd, reduced);
     else if(!strcmp(field, "Z3"))
-      khp = compute_khp<Zp<3> >(kd, reduced);
+      khp = compute_khp<Zp<3>>(kd, reduced);
     else if(!strcmp(field, "Q"))
       khp = compute_khp<Q>(kd, reduced);
     else
@@ -770,6 +822,25 @@ main (int argc, char **argv)
     }
     printf("Khovanov polynomial of %s is equal to (coefficients %s):\n", knot, field);
     khp.display_self();
+  }
+  else if(!strcmp(invariant, "periodicity_congruence")) {
+    if(!strcmp(field, "Z2")) {
+      // first we check whether period is a prime
+      if(period == 2 || period == 3) {
+	std::cerr << "The criterion does not work for period = " << period << "\n";
+	exit(EXIT_FAILURE);
+      }
+      auto result = find(primes.begin(), primes.end(), period);
+      if(result == primes.end()) {
+	std::cerr << "For now it is possible to check periodicity for primes up to 31" << "\n";
+	exit(EXIT_FAILURE);
+      }
+      check_periodicity_criterion<Z2>(kd,period);
+    }
+    else {
+      std::cerr << "error: for now this function is only defined for Z2 coefficients..." << "\n";
+      exit(EXIT_FAILURE);
+    }
   }
   else
     {

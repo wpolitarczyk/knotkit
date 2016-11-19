@@ -13,47 +13,8 @@ class Q
   using linear_combination_const_iter = ::linear_combination_const_iter<Q>;
 
  private:
-  // enum steal { STEAL };
-  // enum copy { COPY };
-  // class Q_impl : public refcounted
-  // {
-  // public:
-  //   mpq_t x;
-    
-  // public:
-  //   Q_impl () { mpq_init (x); }
-  //   Q_impl (int init)
-  //   {
-  //     mpq_init (x);
-  //     mpq_set_si (x, init, 1);
-  //   }
-    
-  //   Q_impl (copy, mpq_srcptr init)
-  //   {
-  //     mpq_init (x);
-  //     mpq_set (x, init);
-  //   }
-    
-  //   Q_impl (steal, mpq_srcptr init) { x[0] = *init; }
-  //   Q_impl (reader &r)
-  //   {
-  //     mpq_init (x);
-  //     r.read_mpz (mpq_numref (x));
-  //     r.read_mpz (mpq_denref (x));
-  //   }
-    
-  //   ~Q_impl () { mpq_clear (x); }
-    
-  //   void write_self (writer &w) const
-  //   {
-  //     w.write_mpz (mpq_numref (x));
-  //     w.write_mpz (mpq_denref (x));
-  //   }
-  // };
-  
-  // ptr<Q_impl> impl;
   std::shared_ptr<mpq_class> impl;
-    void write_state() const {
+  void write_state() const {
     std::cout << "I store the following value " << *this << "\n";
     std::cout << "Number of objects pointing to the same value " << impl.use_count() << "\n";
     /* std::cout << "I point to " << impl.get() << "\n"; */
@@ -246,6 +207,11 @@ class Q
   int get_count() const {
     return impl.use_count();
   }
+  Z get_num() const {
+    return Z(impl.get()->get_num());
+  }
+  Z get_den() const {
+    return Z(impl.get()->get_den());
+  }
 };
-
 #endif // _KNOTKIT_ALGEBRA_Q_H

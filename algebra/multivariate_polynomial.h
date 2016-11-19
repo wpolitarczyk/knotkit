@@ -1,4 +1,5 @@
-
+#ifndef _KNOTKIT_ALGEBRA_MULTIVARIATE_POLYNOMIAL_H
+#define _KNOTKIT_ALGEBRA_MULTIVARIATE_POLYNOMIAL_H
 /* multivariate polynomial in a (vector) variable x with coefficients
    in T. */
 
@@ -499,3 +500,5 @@ multivariate_polynomial<T, n>::show_self () const
   if (first)
     printf ("0");
 }
+
+#endif // _KNOTKIT_ALGEBRA_MULTIVARIATE_POLYNOMIAL_H

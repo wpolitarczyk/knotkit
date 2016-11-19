@@ -1,3 +1,5 @@
+#ifndef _KNOTKIT_ALGEBRA_FRACTION_FIELD_H
+#define _KNOTKIT_ALGEBRA_FRACTION_FIELD_H
 
 template<class T> class fraction_field
 {
@@ -243,3 +245,5 @@ fraction_field<T>::show_self () const
       printf (")");
     }
 }
+
+#endif // _KNOTKIT_ALGEBRA_FRACTION_FIELD_H

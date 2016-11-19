@@ -1,6 +1,6 @@
 #ifndef KNOTKIT_ALGEBRA_ZP_H
 #define KNOTKIT_ALGEBRA_ZP_H
-
+#include <algebra/Z.h>
 #include <iostream>
 #include <tuple>
 #include <cassert>
@@ -32,6 +32,7 @@ class Zp
   Zp (Zp&& x) : v(std::move(x.v)) {
     x.v = 0;
   }
+  Zp (const Z& z) : v((z % p).get_ui()) {}
   ~Zp () { }
   
   Zp& operator = (const Zp& x) { v = x.v; return *this; }
@@ -123,5 +124,4 @@ class Zp
   void show_self () const { std::cout << v << "(" << p << ")"; }
   void display_self () const { std::cout << *this << "\n"; }
 };
-
 #endif //KNOTKIT_ALGEBRA_ZP_H

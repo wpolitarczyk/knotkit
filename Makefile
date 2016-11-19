@@ -11,7 +11,7 @@ CXX = g++ -std=c++11
 INCLUDES = -I. -I/opt/local/include 
 
 # OPTFLAGS = -g
-OPTFLAGS = -O2 -g
+OPTFLAGS = -O2 -g -pg
 # OPTFLAGS = -O2 -g -DNDEBUG
 
 LDFLAGS = -L/opt/local/lib
@@ -55,7 +55,7 @@ all: kk
 	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 kk: kk.o $(COMMON_OBJS)
-	$(CXX) $(LDFLAGS) -o kk $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -pg -o kk $^ $(LIBS)
 
 main: main.o $(COMMON_OBJS)
 	$(CXX) $(LDFLAGS) -o main $^ $(LIBS)
