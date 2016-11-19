@@ -1,4 +1,3 @@
-
 #include <knotkit.h>
 
 const char *program_name;

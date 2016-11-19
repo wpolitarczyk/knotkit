@@ -1,5 +1,9 @@
-
 #include <lib/lib.h>
+
+#ifdef DEBUG_ALGEBRA
+#define DEBUG_Z
+#define DEBUG_Q
+#endif
 
 inline int recip (int x)
 {

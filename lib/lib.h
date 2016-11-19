@@ -8,7 +8,8 @@
 #include <sys/stat.h>
 #include <sys/errno.h>
 
-#include <gmp.h>
+#include <gmpxx.h>
+//#include <gmp.h>
 #include <zlib.h>
 
 #include <initializer_list>

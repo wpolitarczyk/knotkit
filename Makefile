@@ -5,14 +5,14 @@ BISON = bison
 FLEX = flex
 
 CXX = g++ -std=c++11
-# CXX = OMPI_CXX=clang++ mpic++ -fno-color-diagnostics --stdlib=libc++ --std=c++11 -I/u/cseed/llvm-3.1/lib/c++/v1
+#CXX = OMPI_CXX=clang++ mpic++ -fno-color-diagnostics --stdlib=libc++ --std=c++11 -I/u/cseed/llvm-3.1/lib/c++/v1
 #CXX = clang++ -fno-color-diagnostics --stdlib=libc++ --std=c++11
 
 INCLUDES = -I. -I/opt/local/include 
 
 # OPTFLAGS = -g
 OPTFLAGS = -O2 -g
-# OPTFLAGS = -O2 -DNDEBUG
+# OPTFLAGS = -O2 -g -DNDEBUG
 
 LDFLAGS = -L/opt/local/lib
 
@@ -44,7 +44,7 @@ KNOTKIT_HEADERS = knotkit.h planar_diagram.h dt_code.h knot_diagram.h \
   smoothing.h cobordism.h cube.h steenrod_square.h \
   spanning_tree_complex.h cube_impl.h sseq.h simplify_chain_complex.h
 
-LIBS = -lgmp -lz
+LIBS = -lgmpxx -lgmp  -lz
 
 all: kk
 
