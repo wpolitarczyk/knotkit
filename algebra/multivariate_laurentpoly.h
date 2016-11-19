@@ -481,3 +481,55 @@ multivariate_laurentpoly<T>::show_self () const
   if (first)
     printf ("0");
 }
+
+// functions below were added to verify several periodicity criteria
+
+// function below inverts every occurence of a variable x_index
+// i.e. this means that x_index is replaced by x_index^{-1}
+template<class T>
+multivariate_laurentpoly<T> invert_variable(const multivariate_laurentpoly<T>& p, unsigned index = 1) {
+  multivariate_laurentpoly<T> result;
+  for (typename map<multivariate_laurent_monomial, T>::const_iter i = p.coeffs; i; i ++) {
+    multivariate_laurent_monomial mon = i.key();
+    T c = i.val();
+    multivariate_laurent_monomial mon2;
+    for(map<unsigned, int>::const_iter i = mon.m; i; i++) {
+      if(i.key() == index) {
+	 mon2 *= multivariate_laurent_monomial(VARIABLE, i.key(), -i.val());
+      }
+      else {
+	mon2 *= multivariate_laurent_monomial(VARIABLE, i.key(), i.val());
+      }
+    }
+    result += multivariate_laurentpoly<T>(c, mon2);
+  }
+  return result;
+}
+
+template<class T>
+bool check_przytycki_cong(const multivariate_laurentpoly<T>& pol, const int prime,
+			  const int exponent = 1, const unsigned index = 1) {
+  multivariate_laurentpoly<T> result;
+  for(typename map<multivariate_laurent_monomial, T>::const_iter i = pol.coeffs; i; i++) {
+    multivariate_laurent_monomial mon = i.key();
+    T c = i.val();
+    multivariate_laurent_monomial mon2;
+    for(typename map<unsigned, int>::const_iter i = mon.m; i; i++) {
+      // still need to handle the coefficient
+      // i.e. we need to take c % p
+      if(i.key() == index) {
+	int v = i.val() % (2 * prime);
+	if(v < 0) v += (2 * prime);
+	mon2 *= multivariate_laurent_monomial(VARIABLE, i.key(), v);
+	c.display_self();
+	printf("Old: key = %d, val = %d\n", i.key(), i.val());
+	printf("New: key = %d, val = %d\n", i.key(), v);
+      }
+      else
+	mon2 *= multivariate_laurent_monomial(VARIABLE, i.key(), i.val());
+    }
+    result += multivariate_laurentpoly<T>(c, mon2);
+  }
+  result.display_self();
+  return true;
+}

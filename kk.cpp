@@ -251,35 +251,43 @@ compute_gss ()
   tex_footer ();
 }
 
-multivariate_laurentpoly<Q> compute_jones(const knot_diagram& k, bool reduced) {
-    cube<Z2> c(kd, reduced);
-    multivariate_laurentpoly<Q> jones;
-    for(uint i = 1; i <= c.n_generators; ++i) {
-      grading gr = c.compute_generator_grading(i);
-      if(gr.h % 2 == 0) {
-	jones += multivariate_laurentpoly<Q>(1, VARIABLE, 1, gr.q);
-      }
-      else {
-	jones += multivariate_laurentpoly<Q>(-1, VARIABLE, 1, gr.q);
-      }
-    }
-    return jones;
-}
-
-void compute_khp(const knot_diagram& k, bool reduced) {
-  cube<Z2> c(kd,reduced);
+multivariate_laurentpoly<Z> compute_jones(const knot_diagram& k, bool reduced) {
+  cube<Z2> c(kd, reduced);
   ptr<const module<Z2> > C = c.khC;
   mod_map<Z2> d = c.compute_d(1, 0, 0, 0, 0);
   chain_complex_simplifier<Z2> s(C, d, maybe<int>(1), maybe<int>(0));
   C = s.new_C;
   d = s.new_d;
-  C->show_self();
-  //multivariate_laurentpoly<Q> khp;
-  //for(uint i = 1; i <= c.n_generators; ++i) {
-  //  grading gr = c.compute_generator_grading(i);
-  //  khp += multivariate_laurentpoly<Q>(1, VARIABLE, gr.h, gr.q);
-  //}
-  printf("The Poincare polynomial \n");
+  multivariate_laurentpoly<Z> jones;
+  for(uint i = 1; i <= c.n_generators; ++i) {
+    grading gr = c.compute_generator_grading(i);
+    if(gr.h % 2 == 0) {
+      jones += multivariate_laurentpoly<Z>(1, VARIABLE, 1, gr.q);
+    }
+    else {
+      jones += multivariate_laurentpoly<Z>(-1, VARIABLE, 1, gr.q);
+    }
+  }
+  return jones;
+}
+
+template<class R>
+multivariate_laurentpoly<Z> compute_khp(const knot_diagram& k, bool reduced) {
+  cube<R> c(kd,reduced);
+  ptr<const module<R> > C = c.khC;
+  mod_map<R> d = c.compute_d(1, 0, 0, 0, 0);
+  chain_complex_simplifier<R> s(C, d, maybe<int>(1), maybe<int>(0));
+  C = s.new_C;
+  d = s.new_d;
+  multivariate_laurentpoly<Z> khp;
+  for(uint i = 1; i <= C->dim(); ++i) {
+    grading gr = C->generator_grading(i);
+    multivariate_laurentpoly<Z> p1 = multivariate_laurentpoly<Z>(1, VARIABLE, 0, gr.h);
+    multivariate_laurentpoly<Z> p2 = multivariate_laurentpoly<Z>(1, VARIABLE, 1, gr.q);
+    multivariate_laurentpoly<Z> p3 = p1 * p2;
+    khp += p3;
+  }
+  return khp;
 }
 
 template<class R> void
@@ -733,16 +741,36 @@ main (int argc, char **argv)
       compute_gss ();
     }
   else if(!strcmp(invariant, "jones")) {
-    multivariate_laurentpoly<Q> jones_pol = compute_jones(kd, reduced);
-    printf("Jones polynomial of %s is equal to:\n", knot);
-    jones_pol.show_self();
-    printf("\n");
+    multivariate_laurentpoly<Z> jones_pol = compute_jones(kd, reduced);
+    printf("Jones polynomial of %s is equal to (coefficients in %s):\n", knot, field);
+    jones_pol.display_self();
   }
   else if(!strcmp(invariant, "przytycki_cong")) {
-    multivariate_laurentpoly<Q> jones_pol = compute_jones(kd, reduced);
+    // need to add a commandline switch to be able to read
+    // symmetry order
+    multivariate_laurentpoly<Z> jones_pol = compute_jones(kd, reduced);
+    multivariate_laurentpoly<Z> inv_jones_pol = invert_variable(jones_pol,1);
+    jones_pol.display_self();
+    inv_jones_pol.display_self();
+    multivariate_laurentpoly<Z> diff = jones_pol - inv_jones_pol;
+    diff.display_self();
+    check_przytycki_cong(diff, 3);
   }
   else if(!strcmp(invariant, "khp")) {
-    compute_khp(kd, reduced);
+    multivariate_laurentpoly<Z> khp;
+    if(!strcmp(field, "Z2"))
+      khp = compute_khp<Z2>(kd, reduced);
+    else if(!strcmp(field, "Z3"))
+      khp = compute_khp<Zp<3> >(kd, reduced);
+    else if(!strcmp(field, "Q"))
+      khp = compute_khp<Q>(kd, reduced);
+    else
+    {
+      fprintf (stderr, "error: unknown field %s\n", field);
+      exit (EXIT_FAILURE);
+    }
+    printf("Khovanov polynomial of %s is equal to (coefficients %s):\n", knot, field);
+    khp.display_self();
   }
   else
     {
