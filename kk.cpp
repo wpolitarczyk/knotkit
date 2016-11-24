@@ -1,6 +1,10 @@
+
 #include <knotkit.h>
+<<<<<<< HEAD
 #include <periodicity.h>
 #include <fstream>
+=======
+>>>>>>> 297e02dc05d79c4546d04aeb720680a9c231284e
 #include <vector>
 #include <utility>
 
@@ -398,53 +402,6 @@ void check_periodicity(std::string out_file) {
   }
 }
 
-
-// template<class R>
-// void check_periodicity_criterion(knot_diagram kd, int prime = 5, Test_type t){
-  // using monomial = multivariate_laurent_monomial;
-  // using polynomial = multivariate_laurentpoly<Z>;
-  // unsigned m = kd.num_components();
-  // if(m != 1) {
-  //   std::cerr << "Error: for now this only works for knots\n";
-  //   exit(EXIT_FAILURE);
-  // }
-  // polynomial khp, lee_p;
-  // // Adding braces so that the cube can be destroyed
-  // // when its not needed anymore
-  // { 
-  //   cube<R> c(kd,0);
-  //   ptr<const module<R>> C = c.khC;
-  //   mod_map<R> d = c.compute_d(1, 0, 0, 0, 0);
-  //   for(unsigned i = 1; i <= kd.n_crossings; i++)
-  //     d = d + c.H_i(i);
-  //   assert (d.compose(d) == 0);
-
-  //   // computing Khovanov homology
-  //   if(verbose)
-  //     std::cout << "Computing Khovanov polynomial..." << "\n";
-  //   chain_complex_simplifier<R> s(C, d, maybe<int>(1), maybe<int>(0));
-  //   C = s.new_C;
-  //   d = s.new_d;
-  //   khp = C->free_poincare_polynomial();
-
-  //   // computing Lee homology
-  //   if(verbose)
-  //     std::cout << "Computing Lee polynomial..." << "\n";
-  //   chain_complex_simplifier<R> s1(C, d, maybe<int>(1), maybe<int>(2));
-  //   C = s1.new_C;
-  //   d = s1.new_d;
-  //   assert(C->dim() == 2);
-  //   lee_p = C->free_poincare_polynomial();
-  // }
-  // if(verbose) {
-  //   std::cout << "Khovanov polynomial = "
-  // 	      << khp << "\n"
-  // 	      << "Lee polynomial = "
-  // 	      << lee_p << "\n";
-  // }
-  // periodicity_checker pc(khp, lee_p, prime, t);
-  // pc();
-// }
 
 template<class R> void
 compute_invariant ()
@@ -886,6 +843,25 @@ main (int argc, char **argv)
     std::cout << "Khovanov polynomial (coefficients in " << field
 	      << ") of " << knot <<  " = " << std::endl
 	      << khp << std::endl;
+  }
+  else if(!strcmp(invariant, "periodicity_congruence")) {
+    if(!strcmp(field, "Z2")) {
+      // first we check whether period is a prime
+      if(period == 2 || period == 3) {
+	std::cerr << "The criterion does not work for period = " << period << "\n";
+	exit(EXIT_FAILURE);
+      }
+      auto result = find(primes.begin(), primes.end(), period);
+      if(result == primes.end()) {
+	std::cerr << "For now it is possible to check periodicity for primes up to 31" << "\n";
+	exit(EXIT_FAILURE);
+      }
+      check_periodicity_criterion<Z2>(kd,period);
+    }
+    else {
+      std::cerr << "error: for now this function is only defined for Z2 coefficients..." << "\n";
+      exit(EXIT_FAILURE);
+    }
   }
   else
     {

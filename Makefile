@@ -11,7 +11,7 @@ CXX = g++ -std=c++11
 INCLUDES = -I. -I/opt/local/include 
 
 # OPTFLAGS = -g
-OPTFLAGS = -O2 -g
+OPTFLAGS = -O2 -g -pg
 # OPTFLAGS = -O2 -g -DNDEBUG
 
 LDFLAGS = -L/opt/local/lib

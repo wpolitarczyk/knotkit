@@ -548,6 +548,7 @@ multivariate_laurentpoly<T> invert_variable(const multivariate_laurentpoly<T>& p
   return result;
 }
 
+<<<<<<< HEAD
 template<class T>
 multivariate_laurentpoly<T>
 multivariate_laurentpoly<T>::evaluate(T val, unsigned index) const {
@@ -568,4 +569,6 @@ multivariate_laurentpoly<T>::evaluate(T val, unsigned index) const {
   return res;
 }
 
+=======
+>>>>>>> 297e02dc05d79c4546d04aeb720680a9c231284e
 #endif // _KNOTKIT_ALGEBRA_MULTIVARIATE_LAURENPOLY_H
