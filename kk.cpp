@@ -1,10 +1,6 @@
-
 #include <knotkit.h>
-<<<<<<< HEAD
 #include <periodicity.h>
 #include <fstream>
-=======
->>>>>>> 297e02dc05d79c4546d04aeb720680a9c231284e
 #include <vector>
 #include <utility>
 
@@ -322,6 +318,17 @@ int compute_s_inv(knot_diagram& kd) {
 }
 
 void check_periodicity(std::string out_file) {
+  if(periodicity_test == "all") {
+    Kh_periodicity_checker Kh_pc(kd);
+    Przytycki_periodicity_checker P_pc(Kh_pc.get_KhP().evaluate(-1, eval_index));
+    for(auto& p : primes_list) {
+      std::cout << "Przytycki's criterion: "
+		<< P_pc(p) << std::endl
+		<< "Kh criterion: "
+		<< Kh_pc(p) << std::endl;
+    }
+  }
+  else {
   if(period == 2 || period == 3) {
     std::cout << "Sorry, the criteria don't work for period "
 	      << period << "...\n";
@@ -332,73 +339,26 @@ void check_periodicity(std::string out_file) {
     std::cout << "For now you can only check periodicity for primes up to 31..." << "\n";
     exit(EXIT_FAILURE);
   }
-  std::ofstream out(out_file);
+  std::ofstream out(out_file, std::ios_base::app);
   
-  if(periodicity_test == "all") {
-    std::cout << "I will perform both test..." << "\n";
-  }
-  else if(periodicity_test == "Przytycki") {
-    switch(period) {
-    case 5: {
-      Przytycki_periodicity_checker<5> pcc;
-      if(out_file.size() != 0)
-	out << pcc(compute_jones(kd)) << std::endl;
-      else
-	std::cout << pcc(compute_jones(kd)) << std::endl;
-      break;
-    }
-    case 7: {
-      Przytycki_periodicity_checker<7> pcc;
-      if(out_file.size() != 0)
-	out << pcc(compute_jones(kd)) << std::endl;
-      else
-	std::cout << pcc(compute_jones(kd)) << std::endl;
-      break;
-    }
-    case 11: {
-      Przytycki_periodicity_checker<11> pcc;
-      if(out_file.size() != 0)
-	out << pcc(compute_jones(kd)) << std::endl;
-      else
-	std::cout << pcc(compute_jones(kd)) << std::endl;
-      break;
-    }
-    case 13: {
-      Przytycki_periodicity_checker<13> pcc;
-      if(out_file.size() != 0)
-	out << pcc(compute_jones(kd)) << std::endl;
-      else
-	std::cout << pcc(compute_jones(kd)) << std::endl;
-      break;
-    }
-    case 17: {
-      Przytycki_periodicity_checker<17> pcc;
-      if(out_file.size() != 0)
-	out << pcc(compute_jones(kd)) << std::endl;
-      else
-	std::cout << pcc(compute_jones(kd)) << std::endl;
-      break;
-    }
-    case 19: {
-      Przytycki_periodicity_checker<19> pcc;
-      if(out_file.size() != 0)
-	out << pcc(compute_jones(kd)) << std::endl;
-      else
-	std::cout << pcc(compute_jones(kd)) << std::endl;
-      break;
-    }
-    }
+  if(periodicity_test == "Przytycki") {
+    Przytycki_periodicity_checker P_pc(compute_jones(kd));
+    if(out_file.size() != 0)
+      out << P_pc(period) << std::endl;
+    else
+      std::cout << P_pc(period) << std::endl;
   }
   else if(periodicity_test == "Kh") {
-    Kh_periodicity_checker pc(kd);
+    Kh_periodicity_checker Kh_pc(kd);
     if(out_file.size() != 0)
-      out << pc(period) << std::endl;
+      out << Kh_pc(period) << std::endl;
     else
-      std::cout << pc(period) << std::endl;
+      std::cout << Kh_pc(period) << std::endl;
   }
   else {
-    std::cout << "Sorry, I don't recognize this option..." << "\n";
-    exit(EXIT_FAILURE);
+      std::cout << "Sorry, I don't recognize this option..." << "\n";
+      exit(EXIT_FAILURE);
+    }
   }
 }
 
@@ -726,7 +686,7 @@ main (int argc, char **argv)
       else if(!strcmp (argv[i], "-p")) {
 	i++;
 	if(i == argc) {
-	  fprintf (stderr, "error: missing argument to option `-o'\n");
+	  fprintf (stderr, "error: missing argument to option `-p'\n");
 	  exit (EXIT_FAILURE);
 	}
 	period = std::stoi(argv[i]);
@@ -734,7 +694,7 @@ main (int argc, char **argv)
       else if (!strcmp(argv[i], "-t")) {
 	i++;
 	if(i == argc) {
-	  fprintf (stderr, "error: missing argument to option `-o'\n");
+	  fprintf (stderr, "error: missing argument to option `-t'\n");
 	  exit (EXIT_FAILURE);
 	}
 	periodicity_test = argv[i];
@@ -843,25 +803,6 @@ main (int argc, char **argv)
     std::cout << "Khovanov polynomial (coefficients in " << field
 	      << ") of " << knot <<  " = " << std::endl
 	      << khp << std::endl;
-  }
-  else if(!strcmp(invariant, "periodicity_congruence")) {
-    if(!strcmp(field, "Z2")) {
-      // first we check whether period is a prime
-      if(period == 2 || period == 3) {
-	std::cerr << "The criterion does not work for period = " << period << "\n";
-	exit(EXIT_FAILURE);
-      }
-      auto result = find(primes.begin(), primes.end(), period);
-      if(result == primes.end()) {
-	std::cerr << "For now it is possible to check periodicity for primes up to 31" << "\n";
-	exit(EXIT_FAILURE);
-      }
-      check_periodicity_criterion<Z2>(kd,period);
-    }
-    else {
-      std::cerr << "error: for now this function is only defined for Z2 coefficients..." << "\n";
-      exit(EXIT_FAILURE);
-    }
   }
   else
     {

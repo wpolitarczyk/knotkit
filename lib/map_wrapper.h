@@ -64,7 +64,7 @@ class map_wrapper
   /* returns the pair associated to the largest key */
   pair<K, V> tail () const
   {
-    typename M::const_reverse_iterator i = impl->t.rbegin ();
+    typename M::const_reverse_iterator i = impl->t.rbegin();
     assert (i != impl->t.rend ());
     return pair<K, V> (i->first, i->second);
   }

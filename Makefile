@@ -11,7 +11,7 @@ CXX = g++ -std=c++11
 INCLUDES = -I. -I/opt/local/include 
 
 # OPTFLAGS = -g
-OPTFLAGS = -O2 -g -pg
+OPTFLAGS = -O2 -g
 # OPTFLAGS = -O2 -g -DNDEBUG
 
 LDFLAGS = -L/opt/local/lib
@@ -120,6 +120,6 @@ realclean: clean
 $(LIB_OBJS): $(LIB_HEADERS)
 $(ALGEBRA_OBJS): $(ALGEBRA_HEADERS) $(LIB_HEADERS)
 $(KNOTKIT_OBJS) main.o mpimain.o kk.o: $(KNOTKIT_HEADERS) $(ALGEBRA_HEADERS) $(LIB_HEADERS) $(PERIODICITY_HEADERS)
-$(PERIODICITY_OBJS) : $(PERIODICITY_HEADERS)
+$(PERIODICITY_OBJS) : $(PERIODICITY_HEADERS) $(ALGEBRA_HEADERS) $(LIB_HEADERS)
 
 mpimain.o mpi_aux.o: mpi_aux.h

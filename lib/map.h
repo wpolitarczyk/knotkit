@@ -1,4 +1,3 @@
-
 /* wrapper for std::map */
 
 template<class K, class V>

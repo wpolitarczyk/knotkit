@@ -14,6 +14,7 @@ class Z
 
  private:  
   std::shared_ptr<mpz_class> impl;
+#ifdef DEBUG_Z
   void write_state() const {
     std::cout << "I store the following value " << *this << "\n";
     std::cout << "Number of objects pointing to the same value " << impl.use_count() << "\n";
@@ -22,6 +23,7 @@ class Z
     /* std::cout << "Size of std::shared_ptr<mpz_class> " << sizeof(impl) << "\n"; */
     /* std::cout << "Size of mpz_class " << sizeof(*impl) << "\n"; */
   }
+#endif
   
  public:
   Z() : impl(new mpz_class) {
@@ -51,6 +53,12 @@ class Z
   Z(const Z& z) : impl(z.impl) {
 #ifdef DEBUG_Z
     std::cout << "Z(const Z& z)" << "\n";
+    write_state();
+#endif
+  }
+  Z(copy, const Z& z) : impl(z.impl) {
+#ifdef DEBUG_Z
+    std::cout << "Z(COPY, const Z& z)\n";
     write_state();
 #endif
   }
@@ -113,6 +121,17 @@ class Z
 
   bool operator < (const Z& z) const {
     return *impl.get() < *z.impl.get();
+  }
+
+  bool operator <= (const Z& z) const {
+    return *this < z || *this == z;
+  }
+
+  bool operator > (const Z& z) const {
+    return !(*this <= z);
+  }
+  bool operator >= (const Z& z) const {
+    return !(*this < z);
   }
 
   bool is_unit () const

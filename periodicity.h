@@ -5,9 +5,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <utility>
-#include <list>
-#include <algorithm>
 
 extern bool verbose;
 extern const char* knot;
@@ -16,15 +13,12 @@ extern std::string periodicity_test;
 
 const std::vector<int> primes_list = {5, 7, 11, 13, 17, 19};
 
-enum class Test_type {
-  Przytycki_criterion,
-  BKP_criterion,
-  all
-};
+const unsigned eval_index = 1;
+const unsigned invert_index = 2;
 
 template<class T>
 class periodic_congruence_checker {
-public:
+protected:
   using polynomial = multivariate_laurentpoly<T>;
   using monomial = multivariate_laurent_monomial;
   
@@ -32,19 +26,20 @@ public:
   unsigned index;
 
   polynomial prepare_polynomial(const polynomial& pol) const {
-    return (pol - invert_variable(pol, index));
+    polynomial inv = invert_variable(pol, index);
+    return pol - inv;
   }
 
   bool reduce(const polynomial& pol) const;
 
 public:
   periodic_congruence_checker(int pprime = 5,
-			      unsigned ind = 2) :
+			      unsigned ind = invert_index) :
     prime(pprime),
     index(ind)
     {}
 
-  ~periodic_congruence_checker() {};
+  virtual ~periodic_congruence_checker() {};
 
   bool operator() (const polynomial& pol) const {
     return reduce(prepare_polynomial(pol));
@@ -61,31 +56,89 @@ bool periodic_congruence_checker<T>::reduce(const multivariate_laurentpoly<T>& p
     monomial mon = monomial(VARIABLE, index, c);
     res += polynomial(i.val(), mon);
   }
-  if(verbose)
-    std::cout << "reduced = " << res << "\n";
+  // if(verbose)
+  //   std::cout << "reduced = " << res << "\n";
   return res == 0;
 }
 
-template<unsigned p>
 class Przytycki_periodicity_checker {
-  using polynomial = multivariate_laurentpoly<Zp<p>>;
+  using polynomial = multivariate_laurentpoly<Z>;
   using monomial = multivariate_laurent_monomial;
 
-  periodic_congruence_checker<Zp<p>> cong_checker;
+  polynomial jones_pol;
+
+  bool check(int period) const;
 
  public:
-  Przytycki_periodicity_checker() : cong_checker(p) {}
+  Przytycki_periodicity_checker(polynomial j) : jones_pol(j) {}
     
   ~Przytycki_periodicity_checker() {}
   
-  std::string operator() (const polynomial& pol) const {
-    std::ostringstream out;
-    out << knot << ": period = " << p
-	<< ": "
-	<< (cong_checker(pol) ? "Maybe" : "No");
-    return out.str();
+  std::string operator() (int period) const;
+};
+
+template<class T>
+class polynomial_iterator {
+  using polynomial = multivariate_laurentpoly<T>;
+  using monomial = multivariate_laurent_monomial;
+
+  std::vector<monomial> monomials;
+  std::vector<T> bounds;
+  std::vector<T> current_pos;
+  unsigned level;
+
+  void check_current_pos();
+
+public:
+  enum class start_pos { begin, end };
+  
+  polynomial_iterator(const polynomial& init,
+		      start_pos sp = start_pos::begin);
+  polynomial_iterator(const polynomial_iterator& pi) =default;
+  polynomial_iterator(polynomial_iterator&& pi) =default;
+
+  ~polynomial_iterator() {}
+
+  polynomial_iterator& operator = (const polynomial_iterator& pi) =default;
+  polynomial_iterator& operator = (polynomial_iterator&& pi) =default;
+
+  polynomial_iterator& operator ++();
+
+  bool operator == (const polynomial_iterator& pi) const {
+    if(level == monomials.size() || pi.level == pi.monomials.size()) {
+      return level == pi.level &&
+	monomials == pi.monomials &&
+	bounds == pi.bounds;
+    }
+    else {
+      return level == pi.level &&
+	bounds == pi.bounds &&
+	monomials == pi.monomials &&
+	current_pos == pi.current_pos;
+    }
+  }
+  bool operator != (const polynomial_iterator& pi) const {
+    return !(*this == pi);
+  }
+  polynomial operator*() const;
+
+  T get_count() const {
+    Z res = 1;
+    for(auto& v : bounds)
+      res *= (v + 1);
+    return res;
+  }
+
+  std::string write_self() const;
+  friend inline std::ostream& operator << (std::ostream& os, const polynomial_iterator& pi) {
+    return os << pi.write_self();
   }
 };
+
+template<class T>
+std::ostream& operator << (std::ostream& os, const polynomial_iterator<T>& pi) {
+  return os << *pi;
+}
 
 class Kh_periodicity_checker {
   using polynomial = multivariate_laurentpoly<Z>;
@@ -101,7 +154,7 @@ class Kh_periodicity_checker {
   void compute_quot();
   std::pair<polynomial, polynomial> compute_quotient_and_remainder(const polynomial& p,
 								   int period) const;
-  std::list<polynomial> generate_candidates(const polynomial& q) const;
+  // std::list<polynomial> generate_candidates(const polynomial& q) const;
   bool check(const polynomial& q, const polynomial& r, int period) const;
 
  public:
@@ -119,6 +172,14 @@ class Kh_periodicity_checker {
   ~Kh_periodicity_checker() {}
 
   std::string operator () (int period) const;
+
+  polynomial get_KhP() const {
+    return khp;
+  }
+
+  polynomial get_LeeP() const {
+    return leep;
+  }
 };
 
 #endif // _KNOTKIT_PERIODICITY_H
