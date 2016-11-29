@@ -3,6 +3,11 @@ knotkit is a C++ software package written by Cotton Seed
 invariants appearing in low-dimensional topology.  Other contributors
 include Josh Batson.
 
+This is a slightly modified version of knotkit. It includes a periodicity
+testing functionality based on the Przytycki's criterion in terms of
+Jones polynomial and a periodicity criterion from the upcoming paper by
+Maciej Borodzik, Anna Kosiorek and Wojciech Politarczyk.
+
 TABLE OF CONTENTS
 
 1. INTRO
@@ -101,7 +106,8 @@ sequence.  The output for the command sq2 matches the output for the
 program written by Lipshitz-Sarkar and is suitable for loading into
 Sage.  The command s outputs a single line of text.
 
-usage: kk <invariant> [options...] <link>
+usage: %s <invariant> [options...] <link>
+/home/wojtek/ownCloud/src/knotkit/kk
   compute <invariant> for knot or link <link>
 <invariant> can be one of:
   kh: Khovanov homology
@@ -113,10 +119,14 @@ usage: kk <invariant> [options...] <link>
   leess: spectral sequence coming from Bar-Natan analogue of Lee's
     deformation of Khovanov's complex (whew!)
   s: Rasmussen's s-invariant coming from lee
+  khp: computes Khovanov polynomial of a link
+  jones: computes Jones polynomial of a link
+  periodicity: uses periodicity criterion of Przytycki and
+    the criterion in terms of Khovanov polynomial
 output:
     kh, gss, lsss, leess: .tex file
     sq2: text in Sage format
-    s: text
+    s, khp, jones, periodicity: text
 options:
   -r         : compute reduced theory
   -h         : print this message
@@ -125,6 +135,13 @@ options:
   -f <field> : ground field (if applicable)
                 (Z2 is the default)
   -v         : verbose: report progress as the computation proceeds
+  -p         : period when verifying periodicity, can be equal to
+                 5,7,11,13,17 or 19
+  -t         : type of periodicity test:
+                 - Przytycki - Przytycki's periodicity test
+                 - Kh - periodicity criterion in terms of Khovanov homology
+                 - all - uses both criteria and tests for all prime
+                         periods between 5 and 19
 <field> can be one of:
   Z2, Z3, Q
 <link> can be one of:

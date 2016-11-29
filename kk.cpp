@@ -9,47 +9,58 @@ const char *program_name;
 void
 usage ()
 {
-  printf ("usage: %s <invariant> [options...] <link>\n", program_name);
-  printf ("  compute <invariant> for knot or link <link>\n");
-  printf ("<invariant> can be one of:\n");
-  printf ("  kh: Khovanov homology\n");
-  printf ("  gss: Szabo's geometric spectral sequence\n");
-  printf ("  lsss: Batson-Seed link splitting spectral sequence\n");
-  printf ("    component weights are 0, 1, ..., m\n");
-  printf ("  sq2: Lipshitz-Sarkar Steenrod square on Z/2 Kh\n");
-  printf ("    output suitable for Sage\n");
-  printf ("  leess: spectral sequence coming from Bar-Natan analogue of Lee's\n");
-  printf ("    deformation of Khovanov's complex (whew!)\n");
-  printf ("  s: Rasmussen's s-invariant coming from lee\n");
-  printf ("output:\n");
-  printf ("    kh, gss, lsss, leess: .tex file\n");
-  printf ("    sq2: text in Sage format\n");
-  printf ("    s: text\n");
-  printf ("options:\n");
-  printf ("  -r         : compute reduced theory\n");
-  printf ("  -h         : print this message\n");
-  printf ("  -o <file>  : write output to <file>\n");
-  printf ("                (stdout is the default)\n");
-  printf ("  -f <field> : ground field (if applicable)\n");
-  printf ("                (Z2 is the default)\n");
-  printf ("  -v         : verbose: report progress as the computation proceeds\n");
-  printf ("<field> can be one of:\n");
-  printf ("  Z2, Z3, Q\n");
-  printf ("<link> can be one of:\n");
-  printf ("  - the unknot, e.g. U or unknot\n");
-  printf ("  - a torus knot, e.g. T(2,3)\n");
-  printf ("  - a Rolfsen table knot, e.g. 10_124\n");
-  printf ("  - a Hoste-Thistlethwaite-Weeks knot, e.g. 11a12 or 12n214\n");
-  printf ("  - a Morwen Thistlethwaite link, e.g. L8n9 or L13n8862\n");
-  printf ("  - a planar diagram, e.g.\n");
-  printf ("      PD[X[1, 4, 2, 5], X[3, 6, 4, 1], X[5, 2, 6, 3]] or\n");
-  printf ("      PD[[1, 4, 2, 5], [3, 6, 4, 1], [5, 2, 6, 3]]\n");
-  printf ("  - a Dowker-Thistlethwaite code, e.g.\n");
-  printf ("      DTCode[6,8,2,4],\n");
-  printf ("      DT[dadbcda] or\n");
-  printf ("      DT[{6, -8}, {-10, 12, -14, 2, -4}]\n");
-  printf ("  - a braid, e.g. BR[2, {-1, -1, -1}]\n");
-  printf ("  - disjoint union (juxtaposition), e.g. T(2,3) U\n");
+  std::cout << "usage: %s <invariant> [options...] <link>\n" << program_name << "\n"
+	    << "  compute <invariant> for knot or link <link>\n"
+	    << "<invariant> can be one of:\n"
+	    << "  kh: Khovanov homology\n"
+	    << "  gss: Szabo's geometric spectral sequence\n"
+	    << "  lsss: Batson-Seed link splitting spectral sequence\n"
+	    << "    component weights are 0, 1, ..., m\n"
+	    << "  sq2: Lipshitz-Sarkar Steenrod square on Z/2 Kh\n"
+	    << "    output suitable for Sage\n"
+	    << "  leess: spectral sequence coming from Bar-Natan analogue of Lee's\n"
+	    << "    deformation of Khovanov's complex (whew!)\n"
+	    << "  s: Rasmussen's s-invariant coming from lee\n"
+	    << "  khp: computes Khovanov polynomial of a link\n"
+	    << "  jones: computes Jones polynomial of a link\n"
+	    << "  periodicity: uses periodicity criterion of Przytycki and\n"
+	    << "    the criterion in terms of Khovanov polynomial\n"
+	    << "output:\n"
+	    << "    kh, gss, lsss, leess: .tex file\n"
+	    << "    sq2: text in Sage format\n"
+	    << "    s, khp, jones, periodicity: text\n"
+	    << "options:\n"
+	    << "  -r         : compute reduced theory\n"
+	    << "  -h         : print this message\n"
+	    << "  -o <file>  : write output to <file>\n"
+	    << "                (stdout is the default)\n"
+	    << "  -f <field> : ground field (if applicable)\n"
+	    << "                (Z2 is the default)\n"
+	    << "  -v         : verbose: report progress as the computation proceeds\n"
+	    << "  -p         : period when verifying periodicity, can be equal to\n"
+	    << "                 5,7,11,13,17 or 19\n"
+	    << "  -t         : type of periodicity test:\n"
+	    << "                 - Przytycki - Przytycki's periodicity test\n"
+	    << "                 - Kh - periodicity criterion in terms of Khovanov homology\n"
+	    << "                 - all - uses both criteria and tests for all prime\n"
+	    << "                         periods between 5 and 19\n"
+	    << "<field> can be one of:\n"
+	    << "  Z2, Z3, Q\n"
+	    << "<link> can be one of:\n"
+	    << "  - the unknot, e.g. U or unknot\n"
+	    << "  - a torus knot, e.g. T(2,3)\n"
+	    << "  - a Rolfsen table knot, e.g. 10_124\n"
+	    << "  - a Hoste-Thistlethwaite-Weeks knot, e.g. 11a12 or 12n214\n"
+	    << "  - a Morwen Thistlethwaite link, e.g. L8n9 or L13n8862\n"
+	    << "  - a planar diagram, e.g.\n"
+	    << "      PD[X[1, 4, 2, 5], X[3, 6, 4, 1], X[5, 2, 6, 3]] or\n"
+	    << "      PD[[1, 4, 2, 5], [3, 6, 4, 1], [5, 2, 6, 3]]\n"
+	    << "  - a Dowker-Thistlethwaite code, e.g.\n"
+	    << "      DTCode[6,8,2,4],\n"
+	    << "      DT[dadbcda] or\n"
+	    << "      DT[{6, -8}, {-10, 12, -14, 2, -4}]\n"
+	    << "  - a braid, e.g. BR[2, {-1, -1, -1}]\n"
+	    << "  - disjoint union (juxtaposition), e.g. T(2,3) U\n";
 }
 
 FILE *outfp = stdout;
@@ -336,7 +347,7 @@ void check_periodicity(std::string out_file) {
   }
   auto result = std::find(primes_list.begin(), primes_list.end(), period);
   if(result == primes_list.end()) {
-    std::cout << "For now you can only check periodicity for primes up to 31..." << "\n";
+    std::cout << "For now you can only check periodicity for primes up to 19..." << "\n";
     exit(EXIT_FAILURE);
   }
   std::ofstream out(out_file, std::ios_base::app);
