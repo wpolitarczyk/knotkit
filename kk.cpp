@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <utility>
+#include <cctype>
 
 const char *program_name;
 
@@ -283,7 +284,7 @@ multivariate_laurentpoly<Z> compute_khp(const knot_diagram& k, bool reduced = fa
 }
 
 multivariate_laurentpoly<Z> compute_jones(const knot_diagram& k, bool reduced = false) {
-  return compute_khp<Z2>(k, reduced).evaluate(-1,1);  
+  return compute_khp<Z2>(k, reduced).evaluate(-1, 1);  
 }
 
 template<class R>
@@ -330,13 +331,63 @@ int compute_s_inv(knot_diagram& kd) {
 
 void check_periodicity(std::string out_file) {
   if(periodicity_test == "all") {
-    Kh_periodicity_checker Kh_pc(kd);
-    Przytycki_periodicity_checker P_pc(Kh_pc.get_KhP().evaluate(-1, eval_index));
+    Kh_periodicity_checker Kh_pc(kd, std::string(knot));
     for(auto& p : primes_list) {
-      std::cout << "Przytycki's criterion: "
-		<< P_pc(p) << std::endl
-		<< "Kh criterion: "
-		<< Kh_pc(p) << std::endl;
+      std::cout << "Kh criterion: "
+    		<< Kh_pc(p) << std::endl;
+    }
+  }
+  else if(periodicity_test == "all_seq") {
+    std::string k(knot);
+    // first check whether the number of crossings is bigger or lower than 10
+    if(isdigit(k[1])) {
+      // at least 10 crossings
+      if(k[1] == '0') {
+	// ten crossings
+	int num_cr = 10;
+	int knot_index = stoi(k.substr(3));
+	for(int i = knot_index; i < rolfsen_crossing_knots(num_cr); i++) {
+	  std::string knot_name = std::to_string(num_cr) + "_" + std::to_string(i);
+	  knot_diagram kd_temp = parse_knot(knot_name.c_str());
+	  kd.marked_edge = 1;
+	  Kh_periodicity_checker Kh_pc(kd_temp, knot_name);
+	  for(auto& p : primes_list) {
+	    std::cout << "Kh criterion: "
+		      << Kh_pc(p) << std::endl;
+	  }
+	}
+      }
+      else {
+	int num_cr = stoi(k.substr(0,2));
+	int knot_index = stoi(k.substr(3));
+	char alt = k[2];
+	bool alternating = (alt == 'a' ? true : false);
+	for(int i = knot_index; i <= htw_knots(num_cr, alternating); i++) {
+	  std::string knot_name = std::to_string(num_cr) + alt + std::to_string(i);
+	  knot_diagram kd_temp = parse_knot(knot_name.c_str());
+	  kd.marked_edge = 1;
+	  Kh_periodicity_checker Kh_pc(kd_temp, knot_name);
+	  for(auto& p : primes_list) {
+	    std::cout << "Kh criterion: "
+		      << Kh_pc(p) << std::endl;
+	  }
+	}
+      }
+    }
+    else {
+      // at most nine crossings
+      int num_cr = stoi(k.substr(0, 1));
+      int knot_index = stoi(k.substr(2));
+      for(int i = knot_index; i <= rolfsen_crossing_knots(num_cr); i++) {
+	std::string knot_name = std::to_string(num_cr) + "_" + std::to_string(i);
+	knot_diagram kd_temp = parse_knot(knot_name.c_str());
+	kd.marked_edge = 1;
+	Kh_periodicity_checker Kh_pc(kd_temp, knot_name);
+	for(auto& p : primes_list) {
+	  std::cout << "Kh criterion: "
+		    << Kh_pc(p) << std::endl;
+	}
+      }
     }
   }
   else {
@@ -360,7 +411,7 @@ void check_periodicity(std::string out_file) {
       std::cout << P_pc(period) << std::endl;
   }
   else if(periodicity_test == "Kh") {
-    Kh_periodicity_checker Kh_pc(kd);
+    Kh_periodicity_checker Kh_pc(kd, std::string(knot));
     if(out_file.size() != 0)
       out << Kh_pc(period) << std::endl;
     else

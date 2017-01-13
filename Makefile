@@ -12,7 +12,7 @@ INCLUDES = -I. -I/opt/local/include
 
 # OPTFLAGS = -g
 OPTFLAGS = -O2 -g
-# OPTFLAGS = -O2 -g -DNDEBUG
+# OPTFLAGS = -O2 -DNDEBUG
 
 LDFLAGS = -L/opt/local/lib
 

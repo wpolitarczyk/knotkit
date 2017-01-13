@@ -365,7 +365,7 @@ class multivariate_laurentpoly
   void check () const;
 #endif
 
-  multivariate_laurentpoly evaluate(T val, unsigned index) const;
+  multivariate_laurentpoly& evaluate(T val, unsigned index);
   
   static void show_ring ()
   {
@@ -515,15 +515,6 @@ std::ostream& operator << (std::ostream& os, const multivariate_laurentpoly<T>& 
   return os << pol.to_string();
 }
 
-template<class T, class U>
-multivariate_laurentpoly<T> reduce(const multivariate_laurentpoly<U>& pol) {
-  multivariate_laurentpoly<T> res;
-  for(typename map<unsigned, U>::const_iter i = pol.coeffs; i; i++) {
-    res += multivariate_laurentpoly<T>(i.val(), i.key());
-  }
-  return res;
-}
-
 // functions below were added to verify several periodicity criteria
 
 // function below inverts every occurence of a variable x_index
@@ -550,22 +541,34 @@ multivariate_laurentpoly<T> invert_variable(const multivariate_laurentpoly<T>& p
 
 template<class T>
 multivariate_laurentpoly<T>
-multivariate_laurentpoly<T>::evaluate(T val, unsigned index) const {
+evaluate_with_copy(multivariate_laurentpoly<T> pol,
+		   T val, unsigned index) {
   using polynomial = multivariate_laurentpoly<T>;
   using monomial = multivariate_laurent_monomial;
   polynomial res;
-  for(typename map<monomial, T>::const_iter i = coeffs; i; i++) {
+  for(typename map<monomial, T>::const_iter i = pol.coeffs; i; ++i) {
     if(i.key().m % index) {
       int exp = i.key().m[index];
-      monomial mon = i.key();
-      mon.m.yank(index);
-      polynomial temp = polynomial(i.val() * pow(val, exp), mon);
-      res += temp;
+      monomial mon;
+      for(map<unsigned, int>::const_iter j = i.key().m; j; ++j) {
+	if(j.key() != index)
+	  mon *= monomial(VARIABLE, j.key(), j.val());
+      }
+      res += polynomial(i.val() * pow(val, exp), mon);
     }
-    else
-      res += polynomial(i.val(), i.key());
+    else {
+      monomial mon(COPY, i.key());
+      res += polynomial(i.val(), mon);
+    }
   }
   return res;
+}
+
+template<class T>
+multivariate_laurentpoly<T>&
+multivariate_laurentpoly<T>::evaluate(T val, unsigned index) {
+  *this = evaluate_with_copy<T>(*this, val, index);
+  return *this;
 }
 
 #endif // _KNOTKIT_ALGEBRA_MULTIVARIATE_LAURENPOLY_H
