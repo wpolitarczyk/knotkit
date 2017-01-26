@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <tuple>
 
 extern bool verbose;
 extern const char* knot;
@@ -13,6 +14,8 @@ extern const char* knot;
 extern std::string periodicity_test;
 
 const std::vector<int> primes_list = {5, 7, 11, 13, 17, 19};
+
+enum class Test_Result { MAYBE, NO, NO_NONTRIVIAL_DECOMP };
 
 const unsigned eval_index = 1;
 const unsigned invert_index = 2;
@@ -59,6 +62,8 @@ periodic_congruence_checker<T>::reduce(const multivariate_laurentpoly<T>& pol) c
     monomial mon = monomial(VARIABLE, index, c);
     res += polynomial(i.val(), mon);
   }
+  // if(verbose)
+  //   std::cout << "res = " << res << "\n";
   return res;
 }
 
@@ -78,43 +83,61 @@ class Przytycki_periodicity_checker {
   std::string operator() (int period) const;
 };
 
+class Kh_bounds_iterator {
+  using polynomial = multivariate_laurentpoly<Z>;
+  using monomial = multivariate_laurent_monomial;
+  using polynomial_tuple = std::vector<std::tuple<polynomial, polynomial, polynomial>>;
+  using bounds_vector = std::map<multivariate_laurentpoly<Z>, std::pair<Z, Z>>;
+  
+  bounds_vector bv;
+  int period;
+  std::map<polynomial, Z> current_state;
+  std::map<polynomial, std::pair<Z,Z>>::iterator level;
+
+public:
+  Kh_bounds_iterator(bounds_vector v, int p) :
+    bv(v), period(p) {
+    for(auto& v: bv) {
+      current_state[v.first] = v.second.first;
+    }
+    level = bv.begin();
+  }
+  ~Kh_bounds_iterator() {}
+
+  bool advance();
+  polynomial get_polynomial() const;
+};
+
 class Kh_periodicity_checker {
   using polynomial = multivariate_laurentpoly<Z>;
   using monomial = multivariate_laurent_monomial;
+  using polynomial_tuple = std::vector<std::tuple<polynomial, polynomial, polynomial>>;
+  using bounds_vector = std::map<multivariate_laurentpoly<Z>, std::pair<Z, Z>>;
 
   unsigned ev_index;
   unsigned index;
 
-  polynomial khp, leep, quot;
-  polynomial mul;
+  polynomial khp, leep;
+  std::vector<polynomial> quot, mul, quotients, remainders;
 
   std::string knot_name;
 
-  void compute_knot_polynomials(knot_diagram& kd);
-  void compute_quot();
-  std::pair<polynomial, polynomial> compute_quotient_and_remainder(const polynomial& p,
-								   int period) const;
-  std::map<polynomial, std::pair<Z,Z>>
-  compute_bounds(const polynomial& p, int period) const;
-  polynomial get_basis_polynomial(int exp) const {
-    return (polynomial(1, VARIABLE, index, exp) * mul).evaluate(-1, ev_index) -
-      invert_variable((polynomial(1, VARIABLE, index, exp) * mul).evaluate(-1, ev_index), index);
-  }
-  polynomial get_basis_polynomial(monomial mon) const;
-  std::vector<polynomial> compute_basis_polynomials(int period) const;
-  bool check(const polynomial& q, const polynomial& r, int period) const;
+  std::vector<polynomial> compute_knot_polynomials(knot_diagram& kd);
+  void compute_quot(const std::vector<polynomial>& lee_ss_polynomials);
+  polynomial_tuple
+  compute_quotient_and_remainder(const std::vector<polynomial>& p, int period) const;
+  bounds_vector
+  compute_bounds(const polynomial_tuple& p, int period) const;
+  Test_Result check(const polynomial_tuple& polynomials, int period) const;
 
  public:
   Kh_periodicity_checker(knot_diagram& kd, std::string knot_n) :
     knot_name(knot_n) {
     ev_index = 1;
     index = 2;
-    mul = polynomial(Z(1))
-      + polynomial(1, VARIABLE, ev_index) *
-      polynomial(1, VARIABLE, index, 2);
-
-    compute_knot_polynomials(kd);
-    compute_quot();
+    quot = std::vector<polynomial>();
+    mul = std::vector<polynomial>();
+    compute_quot(compute_knot_polynomials(kd));
   }
 
   ~Kh_periodicity_checker() {}

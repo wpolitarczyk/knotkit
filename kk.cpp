@@ -346,7 +346,7 @@ void check_periodicity(std::string out_file) {
 	// ten crossings
 	int num_cr = 10;
 	int knot_index = stoi(k.substr(3));
-	for(int i = knot_index; i < rolfsen_crossing_knots(num_cr); i++) {
+	for(unsigned i = knot_index; i < rolfsen_crossing_knots(num_cr); i++) {
 	  std::string knot_name = std::to_string(num_cr) + "_" + std::to_string(i);
 	  knot_diagram kd_temp = parse_knot(knot_name.c_str());
 	  kd.marked_edge = 1;
@@ -362,7 +362,7 @@ void check_periodicity(std::string out_file) {
 	int knot_index = stoi(k.substr(3));
 	char alt = k[2];
 	bool alternating = (alt == 'a' ? true : false);
-	for(int i = knot_index; i <= htw_knots(num_cr, alternating); i++) {
+	for(unsigned i = knot_index; i <= htw_knots(num_cr, alternating); i++) {
 	  std::string knot_name = std::to_string(num_cr) + alt + std::to_string(i);
 	  knot_diagram kd_temp = parse_knot(knot_name.c_str());
 	  kd.marked_edge = 1;
@@ -378,7 +378,7 @@ void check_periodicity(std::string out_file) {
       // at most nine crossings
       int num_cr = stoi(k.substr(0, 1));
       int knot_index = stoi(k.substr(2));
-      for(int i = knot_index; i <= rolfsen_crossing_knots(num_cr); i++) {
+      for(unsigned i = knot_index; i <= rolfsen_crossing_knots(num_cr); i++) {
 	std::string knot_name = std::to_string(num_cr) + "_" + std::to_string(i);
 	knot_diagram kd_temp = parse_knot(knot_name.c_str());
 	kd.marked_edge = 1;

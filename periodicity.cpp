@@ -1,5 +1,10 @@
 #include <periodicity.h>
 #include <simplify_chain_complex.h>
+#include <algorithm>
+
+using polynomial_tuple = std::vector<std::tuple<multivariate_laurentpoly<Z>, multivariate_laurentpoly<Z>, multivariate_laurentpoly<Z>>>;
+
+using bounds_vector = std::map<multivariate_laurentpoly<Z>, std::pair<Z, Z>>;
 
 bool Przytycki_periodicity_checker::check(int period) const {
   switch(period) {
@@ -38,8 +43,46 @@ std::string Przytycki_periodicity_checker::operator () (int period) const {
   return res.str();
 }
 
-void Kh_periodicity_checker::compute_knot_polynomials(knot_diagram& kd) {
+bool Kh_bounds_iterator::advance() {
+  if(level == bv.end())
+    return false;
+  for(auto bv_it = bv.begin(); bv_it != level; ++bv_it) {
+    if(current_state[bv_it->first] < (bv_it->second).second) {
+      current_state[bv_it->first] += period;
+      for(auto bv_it_2 = bv.begin(); bv_it_2 != bv_it; ++bv_it_2) {
+	current_state[bv_it_2->first] = bv_it_2->second.first;
+      }
+      return true;
+    }
+  }
+  if(current_state[level->first] < bv[level->first].second) {
+    current_state[level->first] += period;
+    for(auto bv_it = bv.begin(); bv_it != level; ++bv_it) {
+      current_state[bv_it->first] = bv_it->second.first;
+    }
+    return true;
+  }
+  ++level;
+  if(level == bv.end())
+    return false;
+  current_state[level->first] += period;
+  for(auto bv_it = bv.begin(); bv_it != level; ++bv_it) {
+    current_state[bv_it->first] = bv_it->second.first;
+  }
+  
+  return true;
+}
 
+multivariate_laurentpoly<Z> Kh_bounds_iterator::get_polynomial() const {
+  polynomial p;
+  for(auto& cs : current_state) {
+    p += cs.second * cs.first;
+  }
+  return p;
+}
+
+std::vector<multivariate_laurentpoly<Z>>
+Kh_periodicity_checker::compute_knot_polynomials(knot_diagram& kd) {
   unsigned m = kd.num_components ();
   if (m != 1) {
     std::cerr << "warning: this implementation of the criterion works for knots only...";
@@ -56,187 +99,201 @@ void Kh_periodicity_checker::compute_knot_polynomials(knot_diagram& kd) {
 
   // computing Khovanov homology
   if(verbose)
-    std::cout << "Computing Khovanov homology" << std::endl;
-  {
-    chain_complex_simplifier<Z2> s (C, d, maybe<int>(1), maybe<int>(0));
+    std::cerr << "Computing Khovanov homology" << std::endl;
+  std::vector<polynomial> lee_ss_polynomials;
+  int k = 0;
+  for(;;) {
+    chain_complex_simplifier<Z2> s(C, d, maybe<int>(1), maybe<int>(2*k));
     C = s.new_C;
     d = s.new_d;
-    khp = C->free_poincare_polynomial();
-    if(verbose)
-      std::cout << "KhP = " << khp << "\n";
+    lee_ss_polynomials.push_back(C->free_poincare_polynomial());
+    if(k != 0)
+      mul.push_back(polynomial(Z(1)) + polynomial(Z(1), VARIABLE, 1, 1) * polynomial(Z(1), VARIABLE, 2, 2 * k));
+    if(d == 0)
+      break;
+    k++;
   }
   
-  // computing Lee homolgy
-  if(verbose)
-    std::cout << "Computing Lee homology" << std::endl;
-  {
-    chain_complex_simplifier<Z2> s(C, d, maybe<int>(1), maybe<int>(2));
-    C = s.new_C;
-    d = s.new_d;
-    leep = C->free_poincare_polynomial();
-    if(d != 0) {
-      std::cout << "For now, you can only use this criterion on Kh-thin knots." << std::endl;
-      exit(EXIT_FAILURE);
-    }
-    if(verbose) {
-      std::cout << "LeeP = " << leep << "\n";
-    }
+  khp = *lee_ss_polynomials.begin();
+  leep = *lee_ss_polynomials.rbegin();
+
+  if(verbose) {
+    std::cerr << "KhP = " << khp << "\n";
+    std::cerr << "LeeP = " << leep << "\n";
   }
+  // for(unsigned i = 0; i < lee_ss_polynomials.size(); ++i) {
+  //   std::cerr << "lee_ss_polynomials[" << i << "]= "
+  // 	      << lee_ss_polynomials[i] << "\n";
+  //   std::cerr << "mul[" << i << "] = " << mul[i] << "\n";
+  // }
+  return lee_ss_polynomials;
 }
 
-void Kh_periodicity_checker::compute_quot() {
-  polynomial diff = khp - leep;
-  while(diff != 0) {
-    pair<monomial, Z> m = diff.head();
-    if(m.first.m[1] == 1) {
-      pair<monomial, Z> m1 = diff.tail();
-      while(m1.first.m.card() == 1 && m1.first.m[2]) {
-	quot += polynomial(m1.second, m1.first);
-	polynomial p = polynomial(m1.second, m1.first) * mul;
-	diff -= p;
-	if(diff != 0)
-	  m1 = diff.tail();
-	else break;
+void Kh_periodicity_checker::compute_quot(const std::vector<polynomial>& lee_ss_polynomials) {
+  // quot.push_back(polynomial(Z(0)));
+  for(unsigned i = 1; i < lee_ss_polynomials.size(); ++i) {
+    polynomial diff = lee_ss_polynomials[i-1] - lee_ss_polynomials[i];
+    polynomial q = 0;
+    // std::cerr << "diff = " << diff << "\n";
+    // std::cerr << "mul = " << mul[i-1] << "\n";
+    while(diff != 0) {
+      pair<monomial, Z> m = diff.head();
+      if(m.first.m[1] == 1) {
+    	pair<monomial, Z> m1 = diff.tail();
+    	while(m1.first.m.card() == 1 && m1.first.m[2]) {
+    	  q += polynomial(m1.second, m1.first);
+    	  polynomial p = polynomial(m1.second, m1.first) * mul[i-1];
+    	  diff -= p;
+    	  if(diff != 0)
+    	    m1 = diff.tail();
+    	  else break;
+    	}
+    	if(diff != 0)
+    	  m = diff.head();
+    	else
+    	  break;
       }
-      if(diff != 0)
-	m = diff.head();
-      else
-	break;
+      q += polynomial(m.second, m.first);
+      polynomial p = polynomial(m.second, m.first) * mul[i-1];
+      diff -= p;
     }
-    quot += polynomial(m.second, m.first);
-    polynomial p = polynomial(m.second, m.first) * mul;
-    diff -= p;
+    quot.push_back(q);
   }
+  // for(unsigned i = 0; i < quot.size(); ++i) {
+  //   std::cerr << "quot[" << i << "] = " << quot[i] << "\n";
+  // }
 }
 
-std::pair<multivariate_laurentpoly<Z>, multivariate_laurentpoly<Z>>
-Kh_periodicity_checker::compute_quotient_and_remainder(const polynomial& quot,
-						       int period) const {
-  polynomial quotient, remainder;
-  for(map<monomial, Z>::const_iter i = quot.coeffs; i; i++) {
-    std::tuple<Z,Z> div = i.val().divide_with_remainder(period - 1);
-    quotient += polynomial(std::get<0>(div), i.key());
-    remainder += polynomial(std::get<1>(div), i.key());
+polynomial_tuple
+Kh_periodicity_checker::compute_quotient_and_remainder(const std::vector<polynomial>& quot, int period) const {
+  polynomial_tuple decomposed_khp;
+  for(unsigned i = 0; i < quot.size(); ++i) {
+    polynomial quotient, remainder;
+    for(map<monomial, Z>::const_iter j = quot[i].coeffs; j; j++) {
+      std::tuple<Z,Z> div = j.val().divide_with_remainder(period - 1);
+      quotient += polynomial(std::get<0>(div), j.key());
+      remainder += polynomial(std::get<1>(div), j.key());
+    }
+    decomposed_khp.push_back(std::make_tuple(quotient, remainder, std::move(mul[i])));
   }
   if(verbose) {
-    std::cout << "Decomposition of Khp = " << std::endl
-	      << leep << " + ("
-	      << mul << ") * ("
-	      << remainder;
-    if(quotient != 0) {
-      std::cout << " + " << (period - 1)
-		<< " * (" << quotient
-		<< ")";
+    std::cerr << "Decomposition of Khp = " << std::endl
+  	      << leep;
+    for(auto& p: decomposed_khp) {
+      polynomial quotient, remainder, mul;
+      tie(quotient, remainder, mul) = p;
+      std::cerr << " + (" << mul << ") * ("
+		<< remainder;
+      if(quotient != 0)
+	std::cerr << " + " << (period - 1)
+		  << "*(" << quotient << ")";
+      std::cerr << ")";
     }
-    std::cout << ")" << std::endl;
-   
+    std::cerr << "\n";
   }
-  return std::make_pair(quotient, remainder);
+  return decomposed_khp;
 }
 
-std::map<multivariate_laurentpoly<Z>, std::pair<Z,Z>>
-Kh_periodicity_checker::compute_bounds(const polynomial& p, int period) const {
-  std::map<polynomial, std::pair<Z, Z>> bounds;
+bounds_vector
+Kh_periodicity_checker::compute_bounds(const polynomial_tuple& p_tuple, int period) const {
   periodic_congruence_checker<Z> pcc(period);
-  for(map<monomial, Z>::const_iter i = p.coeffs; i; ++i) {
-    monomial mon;
-    int exp = 0;
-    if(i.key().m % ev_index) {
-      exp = i.key().m[ev_index];
-      for(map<unsigned, int>::const_iter j = i.key().m; j; ++j) {
-	if(j.key() != ev_index) {
+  bounds_vector bounds_v;
+  for(auto& p: p_tuple) {
+    polynomial quotient, remainder, mul;
+    tie(quotient, remainder, mul) = p;
+    for(map<monomial, Z>::const_iter i = quotient.coeffs; i; ++i) {
+      monomial mon;
+      int exp = 0;
+      if(i.key().m % ev_index) {
+	exp = i.key().m[ev_index];
+	for(map<unsigned, int>::const_iter j = i.key().m; j; ++j) {
+	  if(j.key() != ev_index) {
+	    int v = j.val() % (2 * period);
+	    if(v < 0) v += (2 * period);
+	    mon *= monomial(VARIABLE, j.key(), v);
+	  }
+	}
+      }
+      else {
+	for(map<unsigned, int>::const_iter j = i.key().m; j; ++j) {
 	  int v = j.val() % (2 * period);
 	  if(v < 0) v += (2 * period);
 	  mon *= monomial(VARIABLE, j.key(), v);
 	}
       }
-    }
-    else {
-      for(map<unsigned, int>::const_iter j = i.key().m; j; ++j) {
-	int v = j.val() % (2 + period);
-	if (v < 0) v += (2 * period);
-	mon *= monomial(VARIABLE, j.key(), v);
+      // std::cerr << polynomial(i.val() * pow(-1,exp), mon) << "\n";
+      Z v_temp = i.val() * pow(-1, exp);
+      polynomial p_temp = (polynomial(1, mon) * mul).evaluate(-1, ev_index);
+      p_temp = pcc.reduce(p_temp - invert_variable(p_temp, index));
+      // std::cerr << "p_temp = " << p_temp << "\n";
+      // std::cerr << "v_temp = " << v_temp << "\n";
+      // std::cerr << "min_exp = " << min_exp << "\n";
+      if(bounds_v.count(p_temp)) {
+	if(v_temp >= 0)
+	  bounds_v[p_temp].second += (v_temp * period);
+	else
+	  bounds_v[p_temp].first += (v_temp * period);
+      }
+      else if(bounds_v.count(p_temp)) {
+	if(v_temp >= 0)
+	  bounds_v[p_temp].first -= (v_temp * period);
+	else
+	  bounds_v[p_temp].second -= (v_temp * period);
+      }
+      else {
+	bounds_v.emplace(p_temp,
+			 std::make_pair<Z,Z>((v_temp < 0 ? (v_temp * period) : Z(0)), (v_temp >= 0 ? (v_temp * period) : Z(0))));
       }
     }
-    // std::cout << polynomial(i.val() * pow(-1, exp), mon) << "\n";
-    Z v_temp = i.val() * pow(-1, exp);
-    polynomial p_temp = (polynomial(1, mon) * mul).evaluate(-1, ev_index);
-    p_temp = pcc.reduce(p_temp - invert_variable(p_temp, index));
-    if(v_temp >= 0)
-      bounds[p_temp].second += (v_temp * period);
-    else
-      bounds[p_temp].first += (v_temp * period);
   }
   
-  // for(std::map<polynomial, std::pair<Z,Z>>::iterator mi = bounds.begin(); mi != bounds.end(); ++mi) {
-  //   std::cout << "Monomial: " << mi->first << "\n";
-  //   std::cout << "Max: " << std::get<1>(mi->second)
-  // 	      << ", Min: " << std::get<0>(mi->second) << "\n";
-  // }
-  return bounds;
-}
-
-std::vector<multivariate_laurentpoly<Z>>
-Kh_periodicity_checker::compute_basis_polynomials(int period) const {
-  std::vector<polynomial> res;
-  periodic_congruence_checker<Z> pcc(period);
-  for(int i = 1; i < period; i += 2) {
-    res.push_back(pcc.reduce(get_basis_polynomial(i)));
+  if(verbose) {
+    for(auto& t: bounds_v) {
+      Z neg, pos;
+      tie(neg, pos) = t.second;
+      std::cerr << "polynomial = " << t.first << "\n";
+      std::cerr << "min = " << neg << ", max = " << pos << "\n";
+    }
   }
-  return res;
+  return bounds_v;
 }
 
-multivariate_laurentpoly<Z> Kh_periodicity_checker::get_basis_polynomial(monomial mon) const {
-  return (polynomial(Z(1), mon) * mul).evaluate(-1, ev_index) -
-    invert_variable((polynomial(Z(1), mon) * mul).evaluate(-1, ev_index), index);
-}
-
-bool Kh_periodicity_checker::check(const polynomial& q,
-				   const polynomial& r,
+Test_Result Kh_periodicity_checker::check(const polynomial_tuple& polynomials,
 				   int period) const {
   periodic_congruence_checker<Z> pcc(period);
-  polynomial t = (leep + mul * (r - q)).evaluate(-1, ev_index);
-  t = pcc.reduce(t - invert_variable(t, index));
-  if(pcc(t)) {
-    return true;
+  polynomial t = polynomial(COPY, leep);
+  for(auto& p : polynomials) {
+    polynomial quotient, remainder, mul;
+    tie(quotient, remainder, mul) = p;
+    t += mul * (remainder - quotient);
+    //std::cerr << "t = " << t << "\n";
   }
-  else if(q == 0)
-    return false;
-  // std::cout << t << std::endl;
-  // std::cout << q << "\n";
-  std::map<polynomial, std::pair<Z,Z>> bounds = compute_bounds(q, period);
-  for(std::map<polynomial, std::pair<Z,Z>>::iterator it = bounds.begin();
-      it != bounds.end(); ++it) {
-    polynomial mon = it->first;
+  polynomial s = t.evaluate(-1, ev_index);
+  s = pcc.reduce(s - invert_variable(s, index));
+  if(pcc(s)) {
+    return Test_Result::MAYBE;
   }
-  std::vector<polynomial> basis_polynomials = compute_basis_polynomials(period);
-  polynomial p = pcc.reduce(get_basis_polynomial(2 * period - 1));
-  for(Z i = bounds[p].first; i <= bounds[p].second; i += 5) {
-    polynomial p_temp = t + polynomial(i, VARIABLE, index, 0) * p;
-    // std::cout << "i = " << i << "\n";
-    // std::cout << "p_temp = " << p_temp << "\n";
-    if(p_temp == 0)
-      return true;
-    for(std::vector<polynomial>::iterator it = basis_polynomials.begin(); it != basis_polynomials.end(); ++it) {
-      pair<monomial, Z> m = p_temp.coeffs.head();
-      monomial mon = m.first;
-      Z c = m.second;
-      polynomial pp = pcc.reduce(get_basis_polynomial(mon));
-      if(pp == *it) {
-	if(c < bounds[pp].first || c > bounds[pp].second)
-	  break;
-	else {
-	  // std::cout << "pp = " << pp << "\n";
-	  p_temp -= polynomial(c, VARIABLE, index, 0) * pp;
-	  // std::cout << "p_temp = " << p_temp << "\n";
-	  if(p_temp == 0)
-	    return true;
-	}
-      }
-    }
+  else if(all_of(polynomials.begin(), polynomials.end(),
+		 [](std::tuple<polynomial, polynomial, polynomial> t)
+		 { return get<0>(t) == 0; }))
+    return Test_Result::NO;
+  bounds_vector bounds = compute_bounds(polynomials, period);
+
+  if(verbose)
+    std::cerr << "s = " << s << "\n";
+  Kh_bounds_iterator Kh_b_it(bounds, period);
+  if(verbose)
+    std::cerr << "current_state = " << Kh_b_it.get_polynomial() << "\n";
+  if(Kh_b_it.get_polynomial() == s)
+    return Test_Result::MAYBE;
+  while(Kh_b_it.advance()) {
+    if(verbose)
+      std::cerr << "current_state = " << Kh_b_it.get_polynomial() << "\n";
+    if(s == Kh_b_it.get_polynomial())
+      return Test_Result::MAYBE;
   }
   
-  return false;
+  return Test_Result::NO_NONTRIVIAL_DECOMP;
 }
 
 std::string Kh_periodicity_checker::operator () (int period) const {
@@ -247,10 +304,11 @@ std::string Kh_periodicity_checker::operator () (int period) const {
     out << knot_name << ": period =  " << period << ": No (Przytycki's criterion).";
   }
   else {
-    std::pair<polynomial, polynomial> q_r = compute_quotient_and_remainder(quot, period);
-    bool res = check(std::get<0>(q_r), std::get<1>(q_r), period);
+    auto q_r = compute_quotient_and_remainder(quot, period);
+    Test_Result res = check(q_r, period);
     out << knot_name << ": period = " << period << ": "
-	<< (res ? "Maybe" : "No");
+  	<< (res == Test_Result::MAYBE ? "Maybe" :
+	    (res == Test_Result::NO ? "No" : "No (Nontrivial decomposition)."));
   }
   return out.str();
 }
