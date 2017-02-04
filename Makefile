@@ -48,7 +48,7 @@ KNOTKIT_HEADERS = knotkit.h planar_diagram.h dt_code.h knot_diagram.h \
 
 PERIODICITY_HEADERS = periodicity.h
 
-LIBS = -lgmpxx -lgmp  -lz
+LIBS = -lgmpxx -lgmp  -lz -lpthread
 
 all: kk
 
@@ -59,7 +59,10 @@ all: kk
 	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 kk: kk.o $(COMMON_OBJS)
-	$(CXX) $(LDFLAGS) -pg -o kk $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o kk $^ $(LIBS)
+
+kk_from_file: kk_from_file.o $(COMMON_OBJS)
+	$(CXX) $(LDFLAGS) -o kk_from_file $^ $(LIBS) -lpthread
 
 main: main.o $(COMMON_OBJS)
 	$(CXX) $(LDFLAGS) -o main $^ $(LIBS)

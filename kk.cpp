@@ -1,9 +1,14 @@
 #include <knotkit.h>
 #include <periodicity.h>
 #include <fstream>
+#include <sstream>
+#include <thread>
+#include <future>
 #include <vector>
 #include <utility>
 #include <cctype>
+
+const unsigned max_threads = 4;
 
 const char *program_name;
 
@@ -88,9 +93,9 @@ const char *invariant = 0;
 const char *field = "Z2";
 std::string periodicity_test = "Przytycki"; 
 int period = 5;
-
 knot_diagram kd;
 bool reduced = 0;
+std::string in_file_name = "/home/wojtek/ownCloud/Lokalny/khovanov-homology-computation/homflypt_test/to_test_kh.txt";
 
 class hg_grading_mapper
 {
@@ -329,12 +334,64 @@ int compute_s_inv(knot_diagram& kd) {
   return qmin + 1;
 }
 
+inline std::string parse_data_from_file(const std::string& data) {
+  auto p_start = data.find(":") + 2;
+  auto p_stop = data.find("]");
+  return data.substr(p_start, p_stop - p_start);
+}
+
+std::string perform_computations(const std::string& knot_name) {
+  std::ostringstream res;
+  knot_diagram kd = parse_knot(knot_name.c_str());
+  kd.marked_edge = 1;
+  Kh_periodicity_checker Kh_pc(kd, knot_name);
+  for(auto p: primes_list) {
+    res << "Kh criterion: " << Kh_pc(p) << std::endl;
+  }
+  return res.str();
+}
+
 void check_periodicity(std::string out_file) {
   if(periodicity_test == "all") {
     Kh_periodicity_checker Kh_pc(kd, std::string(knot));
     for(auto& p : primes_list) {
       std::cout << "Kh criterion: "
     		<< Kh_pc(p) << std::endl;
+    }
+  }
+  else if(periodicity_test == "Kh_from_file") {
+    std::ifstream in_file(in_file_name);
+    if(!in_file) {
+      std::cerr << "Cannot open file " << in_file_name << "\n";
+      exit(EXIT_FAILURE);
+    }
+    unsigned num_threads = std::min(max_threads, std::thread::hardware_concurrency());
+    std::string line;
+    std::string previous_knot;
+    std::vector<std::future<std::string>> v_future(num_threads);
+    bool stop = false;
+    while(!stop) {
+      unsigned i = 0;
+      while(i < num_threads) {
+	if(!in_file.eof()) {
+	  std::getline(in_file, line);
+	  std::string knot_name = parse_data_from_file(line);
+	  if(knot_name == previous_knot)
+	    continue;
+	  else {
+	    v_future[i] = std::async(std::launch::async, perform_computations, knot_name);
+	    ++i;
+	    std::cerr << "Checking " << knot_name << "\n";
+	    previous_knot = knot_name;
+	  }
+	}
+	else {
+	  stop = true;
+	  break;
+	}
+      }
+      for(auto& v_f : v_future)
+	std::cout << v_f.get();
     }
   }
   else if(periodicity_test == "all_seq") {
@@ -392,7 +449,7 @@ void check_periodicity(std::string out_file) {
   }
   else {
   if(period == 2 || period == 3) {
-    std::cout << "Sorry, the criteria don't work for period "
+    std::cout << "Sorry, the criterion doesn't work for period "
 	      << period << "...\n";
     exit(EXIT_FAILURE);
   }
@@ -760,6 +817,14 @@ main (int argc, char **argv)
 	  exit (EXIT_FAILURE);
 	}
 	periodicity_test = argv[i];
+      }
+      else if(!strcmp(argv[i], "-i")) {
+	i++;
+	if(i == argc) {
+	  fprintf (stderr, "error: missing argument to option `-t'\n");
+	  exit (EXIT_FAILURE);
+	}
+	in_file_name = argv[i];
       }
       else {
 	fprintf (stderr, "error: unknown argument `%s'\n", argv[1]);

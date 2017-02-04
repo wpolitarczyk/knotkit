@@ -1,6 +1,7 @@
 #include <periodicity.h>
 #include <simplify_chain_complex.h>
 #include <algorithm>
+#include <utility>
 
 using polynomial_tuple = std::vector<std::tuple<multivariate_laurentpoly<Z>, multivariate_laurentpoly<Z>, multivariate_laurentpoly<Z>>>;
 
