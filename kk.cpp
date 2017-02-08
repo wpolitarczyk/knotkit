@@ -95,7 +95,7 @@ std::string periodicity_test = "Przytycki";
 int period = 5;
 knot_diagram kd;
 bool reduced = 0;
-std::string in_file_name = "/home/wojtek/ownCloud/Lokalny/khovanov-homology-computation/homflypt_test/to_test_kh.txt";
+std::string in_file_name = "/home/wojtek/ownCloud/Lokalny/khovanov-homology-computation/both.txt";
 
 class hg_grading_mapper
 {
@@ -334,18 +334,20 @@ int compute_s_inv(knot_diagram& kd) {
   return qmin + 1;
 }
 
-inline std::string parse_data_from_file(const std::string& data) {
-  auto p_start = data.find(":") + 2;
-  auto p_stop = data.find("]");
-  return data.substr(p_start, p_stop - p_start);
+std::pair<std::string, int> parse_data_from_file(const std::string& data) {
+  auto knot_name_stop = data.find(" ");
+  auto p2 = data.find("=") + 2;
+  std::string knot_name = data.substr(0, knot_name_stop);
+  int period = std::stoi(data.substr(knot_name_stop + 3));
+  return make_pair(knot_name, period);
 }
 
-std::string perform_computations(const std::string& knot_name) {
+std::string perform_computations(const std::string& knot_name,
+				 knot_diagram kd,
+				 std::vector<int> periods) {
   std::ostringstream res;
-  knot_diagram kd = parse_knot(knot_name.c_str());
-  kd.marked_edge = 1;
   Kh_periodicity_checker Kh_pc(kd, knot_name);
-  for(auto p: primes_list) {
+  for(auto p: periods) {
     res << "Kh criterion: " << Kh_pc(p) << std::endl;
   }
   return res.str();
@@ -366,31 +368,45 @@ void check_periodicity(std::string out_file) {
       exit(EXIT_FAILURE);
     }
     unsigned num_threads = std::min(max_threads, std::thread::hardware_concurrency());
-    std::string line;
-    std::string previous_knot;
+    unsigned i = 0;
+    std::string line, previous_knot;
+    knot_diagram kd_temp;
     std::vector<std::future<std::string>> v_future(num_threads);
-    bool stop = false;
-    while(!stop) {
-      unsigned i = 0;
-      while(i < num_threads) {
-	if(!in_file.eof()) {
-	  std::getline(in_file, line);
-	  std::string knot_name = parse_data_from_file(line);
-	  if(knot_name == previous_knot)
-	    continue;
-	  else {
-	    v_future[i] = std::async(std::launch::async, perform_computations, knot_name);
-	    ++i;
-	    std::cerr << "Checking " << knot_name << "\n";
-	    previous_knot = knot_name;
-	  }
+    std::vector<int> periods;
+    while(std::getline(in_file, line)) {
+      if(line == "") continue;
+      std::string knot_name;
+      int period;
+      tie(knot_name, period) = parse_data_from_file(line);
+      if(knot_name == previous_knot) {
+	auto p = find(primes_list.begin(), primes_list.end(), period);
+	if(p != primes_list.end()) {
+	  periods.push_back(period);
 	}
 	else {
-	  stop = true;
-	  break;
+	  std::cerr << "Period " << period << " cannot be checked..." << "\n";
 	}
       }
-      for(auto& v_f : v_future)
+      else {
+	if(i == num_threads) {
+	  for(auto& v_f : v_future)
+	    std::cout << v_f.get();
+	  i = 0;
+	}
+	if(previous_knot.size() > 0) {
+	  std::cerr << "Checking " << previous_knot << "\n";
+	  v_future[i] = std::async(perform_computations, previous_knot, kd_temp, periods);
+	  ++i;
+	  periods.clear();
+	}
+	kd_temp = parse_knot(knot_name.c_str());
+	kd_temp.marked_edge = 1;
+	periods.push_back(period);
+	previous_knot = knot_name;
+      }
+    }
+    for(auto& v_f : v_future) {
+      if(v_f.valid())
 	std::cout << v_f.get();
     }
   }
