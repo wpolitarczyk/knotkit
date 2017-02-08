@@ -2,13 +2,9 @@
 #include <periodicity.h>
 #include <fstream>
 #include <sstream>
-#include <thread>
-#include <future>
 #include <vector>
 #include <utility>
 #include <cctype>
-
-const unsigned max_threads = 4;
 
 const char *program_name;
 
@@ -91,11 +87,10 @@ void tex_footer ()
 const char *knot = 0;
 const char *invariant = 0;
 const char *field = "Z2";
-std::string periodicity_test = "Przytycki"; 
-int period = 5;
 knot_diagram kd;
 bool reduced = 0;
-std::string in_file_name = "/home/wojtek/ownCloud/Lokalny/khovanov-homology-computation/homflypt_test/to_test_kh.txt";
+extern int period;
+extern std::string periodicity_test;
 
 class hg_grading_mapper
 {
@@ -334,154 +329,6 @@ int compute_s_inv(knot_diagram& kd) {
   return qmin + 1;
 }
 
-inline std::string parse_data_from_file(const std::string& data) {
-  auto p_start = data.find(":") + 2;
-  auto p_stop = data.find("]");
-  return data.substr(p_start, p_stop - p_start);
-}
-
-std::string perform_computations(const std::string& knot_name) {
-  std::ostringstream res;
-  knot_diagram kd = parse_knot(knot_name.c_str());
-  kd.marked_edge = 1;
-  Kh_periodicity_checker Kh_pc(kd, knot_name);
-  for(auto p: primes_list) {
-    res << "Kh criterion: " << Kh_pc(p) << std::endl;
-  }
-  return res.str();
-}
-
-void check_periodicity(std::string out_file) {
-  if(periodicity_test == "all") {
-    Kh_periodicity_checker Kh_pc(kd, std::string(knot));
-    for(auto& p : primes_list) {
-      std::cout << "Kh criterion: "
-    		<< Kh_pc(p) << std::endl;
-    }
-  }
-  else if(periodicity_test == "Kh_from_file") {
-    std::ifstream in_file(in_file_name);
-    if(!in_file) {
-      std::cerr << "Cannot open file " << in_file_name << "\n";
-      exit(EXIT_FAILURE);
-    }
-    unsigned num_threads = std::min(max_threads, std::thread::hardware_concurrency());
-    std::string line;
-    std::string previous_knot;
-    std::vector<std::future<std::string>> v_future(num_threads);
-    bool stop = false;
-    while(!stop) {
-      unsigned i = 0;
-      while(i < num_threads) {
-	if(!in_file.eof()) {
-	  std::getline(in_file, line);
-	  std::string knot_name = parse_data_from_file(line);
-	  if(knot_name == previous_knot)
-	    continue;
-	  else {
-	    v_future[i] = std::async(std::launch::async, perform_computations, knot_name);
-	    ++i;
-	    std::cerr << "Checking " << knot_name << "\n";
-	    previous_knot = knot_name;
-	  }
-	}
-	else {
-	  stop = true;
-	  break;
-	}
-      }
-      for(auto& v_f : v_future)
-	std::cout << v_f.get();
-    }
-  }
-  else if(periodicity_test == "all_seq") {
-    std::string k(knot);
-    // first check whether the number of crossings is bigger or lower than 10
-    if(isdigit(k[1])) {
-      // at least 10 crossings
-      if(k[1] == '0') {
-	// ten crossings
-	int num_cr = 10;
-	int knot_index = stoi(k.substr(3));
-	for(unsigned i = knot_index; i < rolfsen_crossing_knots(num_cr); i++) {
-	  std::string knot_name = std::to_string(num_cr) + "_" + std::to_string(i);
-	  knot_diagram kd_temp = parse_knot(knot_name.c_str());
-	  kd.marked_edge = 1;
-	  Kh_periodicity_checker Kh_pc(kd_temp, knot_name);
-	  for(auto& p : primes_list) {
-	    std::cout << "Kh criterion: "
-		      << Kh_pc(p) << std::endl;
-	  }
-	}
-      }
-      else {
-	int num_cr = stoi(k.substr(0,2));
-	int knot_index = stoi(k.substr(3));
-	char alt = k[2];
-	bool alternating = (alt == 'a' ? true : false);
-	for(unsigned i = knot_index; i <= htw_knots(num_cr, alternating); i++) {
-	  std::string knot_name = std::to_string(num_cr) + alt + std::to_string(i);
-	  knot_diagram kd_temp = parse_knot(knot_name.c_str());
-	  kd.marked_edge = 1;
-	  Kh_periodicity_checker Kh_pc(kd_temp, knot_name);
-	  for(auto& p : primes_list) {
-	    std::cout << "Kh criterion: "
-		      << Kh_pc(p) << std::endl;
-	  }
-	}
-      }
-    }
-    else {
-      // at most nine crossings
-      int num_cr = stoi(k.substr(0, 1));
-      int knot_index = stoi(k.substr(2));
-      for(unsigned i = knot_index; i <= rolfsen_crossing_knots(num_cr); i++) {
-	std::string knot_name = std::to_string(num_cr) + "_" + std::to_string(i);
-	knot_diagram kd_temp = parse_knot(knot_name.c_str());
-	kd.marked_edge = 1;
-	Kh_periodicity_checker Kh_pc(kd_temp, knot_name);
-	for(auto& p : primes_list) {
-	  std::cout << "Kh criterion: "
-		    << Kh_pc(p) << std::endl;
-	}
-      }
-    }
-  }
-  else {
-  if(period == 2 || period == 3) {
-    std::cout << "Sorry, the criterion doesn't work for period "
-	      << period << "...\n";
-    exit(EXIT_FAILURE);
-  }
-  auto result = std::find(primes_list.begin(), primes_list.end(), period);
-  if(result == primes_list.end()) {
-    std::cout << "For now you can only check periodicity for primes up to 19..." << "\n";
-    exit(EXIT_FAILURE);
-  }
-  std::ofstream out(out_file, std::ios_base::app);
-  
-  if(periodicity_test == "Przytycki") {
-    Przytycki_periodicity_checker P_pc(compute_jones(kd));
-    if(out_file.size() != 0)
-      out << P_pc(period) << std::endl;
-    else
-      std::cout << P_pc(period) << std::endl;
-  }
-  else if(periodicity_test == "Kh") {
-    Kh_periodicity_checker Kh_pc(kd, std::string(knot));
-    if(out_file.size() != 0)
-      out << Kh_pc(period) << std::endl;
-    else
-      std::cout << Kh_pc(period) << std::endl;
-  }
-  else {
-      std::cout << "Sorry, I don't recognize this option..." << "\n";
-      exit(EXIT_FAILURE);
-    }
-  }
-}
-
-
 template<class R> void
 compute_invariant ()
 {
@@ -563,58 +410,56 @@ compute_invariant ()
       ss.texshow (outfp, mapper);
       tex_footer ();
     }
-  else if (!strcmp (invariant, "leess"))
-    {
-      cube<R> c (kd, reduced);
-      ptr<const module<R> > C = c.khC;
+  else if (!strcmp (invariant, "leess")) {
+    cube<R> c (kd, reduced);
+    ptr<const module<R> > C = c.khC;
       
-      mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
-      for (unsigned i = 1; i <= kd.n_crossings; i ++)
-	d = d + c.H_i (i);
-      assert (d.compose (d) == 0);
+    mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
+
+    for (unsigned i = 1; i <= kd.n_crossings; i ++)
+      d = d + c.H_i (i);
+    assert (d.compose (d) == 0);
+
+    unsigned m = kd.num_components ();
+    hg_grading_mapper mapper (m);
       
-      unsigned m = kd.num_components ();
-      hg_grading_mapper mapper (m);
+    sseq_bounds b (C, mapper);
+    basedvector<sseq_page, 1> pages;
       
-      sseq_bounds b (C, mapper);
-      basedvector<sseq_page, 1> pages;
+    int k = 0;
+    for (;;) {
+      chain_complex_simplifier<R> s (C, d,
+				     maybe<int> (1), maybe<int> (2*k));
+      C = s.new_C;
+      d = s.new_d;
+      k ++;
       
-      int k = 0;
-      for (;;)
-	{
-	  chain_complex_simplifier<R> s (C, d,
-					 maybe<int> (1), maybe<int> (2*k));
-	  C = s.new_C;
-	  d = s.new_d;
-	  k ++;
-	  
-	  grading dk_gr (1, 2*k);
-	  pages.append (sseq_page (b, k, dk_gr, d.graded_piece (dk_gr), mapper));
-	  if (d == 0)
-	    break;
-	}
-      
-      sseq ss (b, pages);
-      
-      tex_header ();
-      fprintf (outfp, "$E_k = %s^{BN}_k(\\verb~%s~; \\verb~%s~)$:\\\\\n",
-	       (reduced
-		? "\\widetilde{E}"
-		: "E"),
-	       knot, field);
-      ss.texshow (outfp, mapper);
-      tex_footer ();
+      grading dk_gr (1, 2*k);
+      pages.append (sseq_page (b, k, dk_gr, d.graded_piece (dk_gr), mapper));
+      if (d == 0)
+	break;
     }
+
+    sseq ss (b, pages);
+      
+    tex_header ();
+    fprintf (outfp, "$E_k = %s^{BN}_k(\\verb~%s~; \\verb~%s~)$:\\\\\n",
+	     (reduced
+	      ? "\\widetilde{E}"
+	      : "E"),
+	     knot, field);
+    ss.texshow (outfp, mapper);
+    tex_footer ();
+  }
   else if (!strcmp (invariant, "s"))
   {
     int s = compute_s_inv<R>(kd);  
     fprintf (outfp, "s(%s; %s) = %d\n", knot, field, s);
   }
-  else 
-    {
-      fprintf (stderr, "error: unknown invariant %s\n", invariant);
-      exit (EXIT_FAILURE);
-    }
+  else {
+    fprintf (stderr, "error: unknown invariant %s\n", invariant);
+    exit (EXIT_FAILURE);
+  }
 }
 
 void
@@ -818,14 +663,6 @@ main (int argc, char **argv)
 	}
 	periodicity_test = argv[i];
       }
-      else if(!strcmp(argv[i], "-i")) {
-	i++;
-	if(i == argc) {
-	  fprintf (stderr, "error: missing argument to option `-t'\n");
-	  exit (EXIT_FAILURE);
-	}
-	in_file_name = argv[i];
-      }
       else {
 	fprintf (stderr, "error: unknown argument `%s'\n", argv[1]);
 	fprintf (stderr, "  use -h for usage\n");
@@ -867,48 +704,41 @@ main (int argc, char **argv)
   kd = parse_knot (knot);
   kd.marked_edge = 1;
 
-  if (!strcmp (invariant, "gauss"))
-  {
+  if (!strcmp (invariant, "gauss")) {
     basedvector<basedvector<int, 1>, 1> gc = kd.as_gauss_code ();
-    for (unsigned i = 1; i <= gc.size (); i ++)
-    {
-	   if (i > 1)
-	     printf (":");
-	   for (unsigned j = 1; j <= gc[i].size (); j ++)
-	     {
-	       if (j > 1)
-	     printf (",");
-	       printf ("%d", gc[i][j]);
-	     }
-	 }
-	   newline ();
-	 }
+    for (unsigned i = 1; i <= gc.size (); i ++) {
+      if (i > 1)
+	printf (":");
+      for (unsigned j = 1; j <= gc[i].size (); j ++) {
+	if (j > 1)
+	  printf (",");
+	printf ("%d", gc[i][j]);
+      }
+    }
+    newline ();
+  }
 	
-  if (!strcmp (invariant, "sq2"))
-    {
-      if (strcmp (field, "Z2"))
-	{
-	  fprintf (stderr, "warning: sq2 only defined over Z2, ignoring -f %s\n", field);
-	  field = "Z2";
-	}
-      
-      compute_sq2 ();
+  if (!strcmp (invariant, "sq2")) {
+    if (strcmp (field, "Z2")) {
+      fprintf (stderr, "warning: sq2 only defined over Z2, ignoring -f %s\n", field);
+      field = "Z2";
     }
-  else if (!strcmp (invariant, "gss"))
-    {
-      if (strcmp (field, "Z2"))
-	{
-	  fprintf (stderr, "warning: gss only defined over Z2, ignoring -f %s\n", field);
-	  field = "Z2";
-	}
       
-      compute_gss ();
+    compute_sq2 ();
+  }
+  else if (!strcmp (invariant, "gss")) {
+    if (strcmp (field, "Z2")) {
+      fprintf (stderr, "warning: gss only defined over Z2, ignoring -f %s\n", field);
+      field = "Z2";
     }
+      
+    compute_gss ();
+  }
   else if(!strcmp(invariant, "jones")) {
     std::cout << "Jones polynomial of " << knot << " = " << compute_jones(kd, reduced) << "\n";
   }
   else if(!strcmp(invariant, "periodicity")) {
-    check_periodicity((file ? std::string(file) : std::string()));
+    check_periodicity(kd, std::string(knot), period, std::string(field));
   }
   else if(!strcmp(invariant, "khp")) {
     multivariate_laurentpoly<Z> khp;
@@ -931,20 +761,18 @@ main (int argc, char **argv)
 	      << ") of " << knot <<  " = " << std::endl
 	      << khp << std::endl;
   }
-  else
-    {
-      if (!strcmp (field, "Z2"))
-	compute_invariant<Z2> ();
-      else if (!strcmp (field, "Z3"))
-	compute_invariant<Zp<3> > ();
-      else if (!strcmp (field, "Q"))
-	compute_invariant<Q> ();
-      else
-	{
-	  fprintf (stderr, "error: unknown field %s\n", field);
-	  exit (EXIT_FAILURE);
-	}
+  else {
+    if (!strcmp (field, "Z2"))
+      compute_invariant<Z2> ();
+    else if (!strcmp (field, "Z3"))
+      compute_invariant<Zp<3>> ();
+    else if (!strcmp (field, "Q"))
+      compute_invariant<Q> ();
+    else {
+      fprintf (stderr, "error: unknown field %s\n", field);
+      exit (EXIT_FAILURE);
     }
+  }
   
   if (file)
     fclose (outfp);

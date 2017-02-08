@@ -1,4 +1,3 @@
-
 class smoothing : public refcounted
 {
  public:
