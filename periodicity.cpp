@@ -2,6 +2,12 @@
 #include <simplify_chain_complex.h>
 #include <algorithm>
 #include <utility>
+#include <fstream>
+
+std::string periodicity_test = "Przytycki"; 
+int period = 5;
+
+extern multivariate_laurentpoly<Z> compute_jones(const knot_diagram& k, bool reduced = false);
 
 using polynomial_tuple = std::vector<std::tuple<multivariate_laurentpoly<Z>, multivariate_laurentpoly<Z>, multivariate_laurentpoly<Z>>>;
 
@@ -39,7 +45,7 @@ bool Przytycki_periodicity_checker::check(int period) const {
 
 std::string Przytycki_periodicity_checker::operator () (int period) const {
   std::ostringstream res;
-  res << knot << ": period = " << period << ": "
+  res << knot_name << ": period = " << period << ": "
       << (check(period) ? "Maybe" : "No");
   return res.str();
 }
@@ -82,8 +88,9 @@ multivariate_laurentpoly<Z> Kh_bounds_iterator::get_polynomial() const {
   return p;
 }
 
+template<>
 std::vector<multivariate_laurentpoly<Z>>
-Kh_periodicity_checker::compute_knot_polynomials(knot_diagram& kd) {
+Kh_periodicity_checker::compute_knot_polynomials<Z2>(knot_diagram& kd) {
   unsigned m = kd.num_components ();
   if (m != 1) {
     std::cerr << "warning: this implementation of the criterion works for knots only...";
@@ -122,21 +129,86 @@ Kh_periodicity_checker::compute_knot_polynomials(knot_diagram& kd) {
     std::cerr << "KhP = " << khp << "\n";
     std::cerr << "LeeP = " << leep << "\n";
   }
-  // for(unsigned i = 0; i < lee_ss_polynomials.size(); ++i) {
-  //   std::cerr << "lee_ss_polynomials[" << i << "]= "
-  // 	      << lee_ss_polynomials[i] << "\n";
-  //   std::cerr << "mul[" << i << "] = " << mul[i] << "\n";
-  // }
   return lee_ss_polynomials;
 }
 
+template<typename R>
+std::vector<multivariate_laurentpoly<Z>>
+Kh_periodicity_checker::compute_knot_polynomials(knot_diagram& kd) {
+  unsigned m = kd.num_components ();
+  if (m != 1) {
+    std::cerr << "warning: this implementation of the criterion works for knots only...";
+    exit (EXIT_FAILURE);
+  }
+      
+  cube<R> c (kd, 0);
+  ptr<const module<R> > C = c.khC;
+      
+  mod_map<R> d = c.compute_d (1, 0, 0, 0, 0);
+  for (unsigned i = 1; i <= kd.n_crossings; i ++)
+    d = d + c.H_i (i);
+  assert (d.compose (d) == 0);
+
+  // computing Khovanov homology
+  if(verbose)
+    std::cerr << "Computing Khovanov homology" << std::endl;
+  std::vector<polynomial> lee_ss_polynomials;
+  int k = 0;
+  for(;;) {
+    chain_complex_simplifier<R> s(C, d, maybe<int>(1), maybe<int>(2*k));
+    C = s.new_C;
+    d = s.new_d;
+    if(k % 2 == 0) {
+      lee_ss_polynomials.push_back(C->free_poincare_polynomial());
+      if(k != 0)
+	mul.push_back(polynomial(Z(1)) + polynomial(Z(1), VARIABLE, 1, 1) * polynomial(Z(1), VARIABLE, 2, 2 * k));
+    }
+    if(d == 0)
+      break;
+    k++;
+  }
+  
+  khp = *lee_ss_polynomials.begin();
+  leep = *lee_ss_polynomials.rbegin();
+
+  if(verbose) {
+    std::cerr << "KhP = " << khp << "\n";
+    std::cerr << "LeeP = " << leep << "\n";
+  }
+  return lee_ss_polynomials;
+}
+
+
+Kh_periodicity_checker::Kh_periodicity_checker(knot_diagram& kd,
+					       std::string knot_n,
+					       std::string f = "Z2") :
+  knot_name(knot_n), field(f) {
+  ev_index = 1;
+  index = 2;
+  quot = std::vector<polynomial>();
+  mul = std::vector<polynomial>();
+  if(field == "Z2")
+    compute_quot(compute_knot_polynomials<Z2>(kd));
+  else if(field == "Z3")
+    compute_quot(compute_knot_polynomials<Zp<3>>(kd));
+  else if(field == "Z5")
+    compute_quot(compute_knot_polynomials<Zp<3>>(kd));
+  else if(field == "Z7")
+    compute_quot(compute_knot_polynomials<Zp<7>>(kd));
+  else if(field == "Z11")
+    compute_quot(compute_knot_polynomials<Zp<11>>(kd));
+  else if(field == "Q")
+    compute_quot(compute_knot_polynomials<Q>(kd));
+  else {
+    std::cerr << "Sorry, I don't recognize field " << f << ". Exiting..." << "\n";
+    exit(EXIT_FAILURE);
+  }
+}
+
 void Kh_periodicity_checker::compute_quot(const std::vector<polynomial>& lee_ss_polynomials) {
-  // quot.push_back(polynomial(Z(0)));
   for(unsigned i = 1; i < lee_ss_polynomials.size(); ++i) {
     polynomial diff = lee_ss_polynomials[i-1] - lee_ss_polynomials[i];
     polynomial q = 0;
-    // std::cerr << "diff = " << diff << "\n";
-    // std::cerr << "mul = " << mul[i-1] << "\n";
     while(diff != 0) {
       pair<monomial, Z> m = diff.head();
       if(m.first.m[1] == 1) {
@@ -160,9 +232,6 @@ void Kh_periodicity_checker::compute_quot(const std::vector<polynomial>& lee_ss_
     }
     quot.push_back(q);
   }
-  // for(unsigned i = 0; i < quot.size(); ++i) {
-  //   std::cerr << "quot[" << i << "] = " << quot[i] << "\n";
-  // }
 }
 
 polynomial_tuple
@@ -222,13 +291,9 @@ Kh_periodicity_checker::compute_bounds(const polynomial_tuple& p_tuple, int peri
 	  mon *= monomial(VARIABLE, j.key(), v);
 	}
       }
-      // std::cerr << polynomial(i.val() * pow(-1,exp), mon) << "\n";
       Z v_temp = i.val() * pow(-1, exp);
       polynomial p_temp = (polynomial(1, mon) * mul).evaluate(-1, ev_index);
       p_temp = pcc.reduce(p_temp - invert_variable(p_temp, index));
-      // std::cerr << "p_temp = " << p_temp << "\n";
-      // std::cerr << "v_temp = " << v_temp << "\n";
-      // std::cerr << "min_exp = " << min_exp << "\n";
       if(bounds_v.count(p_temp)) {
 	if(v_temp >= 0)
 	  bounds_v[p_temp].second += (v_temp * period);
@@ -259,7 +324,8 @@ Kh_periodicity_checker::compute_bounds(const polynomial_tuple& p_tuple, int peri
   return bounds_v;
 }
 
-Test_Result Kh_periodicity_checker::check(const polynomial_tuple& polynomials,
+Kh_periodicity_checker::Test_Result
+Kh_periodicity_checker::check(const polynomial_tuple& polynomials,
 				   int period) const {
   periodic_congruence_checker<Z> pcc(period);
   polynomial t = polynomial(COPY, leep);
@@ -299,8 +365,23 @@ Test_Result Kh_periodicity_checker::check(const polynomial_tuple& polynomials,
 
 std::string Kh_periodicity_checker::operator () (int period) const {
   std::ostringstream out;
+  if(field == "Z5" && Zp<5>(period) == Zp<5>(0))
+    return "Period (" + std::to_string(period)
+		      + ") has to be relatively prime to "
+      + "the characteristic of the field ("
+      + field + ")...";
+  else if(field == "Z7" && Zp<7>(period) == Zp<7>(0))
+        return "Period (" + std::to_string(period)
+		      + ") has to be relatively prime to "
+      + "the characteristic of the field ("
+      + field + ")...";
+  else if(field == "Z11" && Zp<11>(period) == Zp<11>(0))
+        return "Period (" + std::to_string(period)
+		      + ") has to be relatively prime to "
+      + "the characteristic of the field ("
+      + field + ")...";
   // first check Przytycki's criterion
-  Przytycki_periodicity_checker P_pc(evaluate_with_copy<Z>(khp, -1, ev_index));
+  Przytycki_periodicity_checker P_pc(evaluate_with_copy<Z>(khp, -1, ev_index), knot_name);
   if(!P_pc.check(period)) {
     out << knot_name << ": period =  " << period << ": No (Przytycki's criterion).";
   }
@@ -309,7 +390,42 @@ std::string Kh_periodicity_checker::operator () (int period) const {
     Test_Result res = check(q_r, period);
     out << knot_name << ": period = " << period << ": "
   	<< (res == Test_Result::MAYBE ? "Maybe" :
-	    (res == Test_Result::NO ? "No" : "No (Nontrivial decomposition)."));
+	    (res == Test_Result::NO ? "No" : "No (Nontrivial decomposition) ("
+	     + field + ")"));
   }
   return out.str();
+}
+
+void check_periodicity(knot_diagram& kd, const std::string knot_name, int period, std::string field) {
+  if(periodicity_test == "all") {
+    Kh_periodicity_checker Kh_pc(kd, knot_name, field);
+    for(auto& p : primes_list) {
+      std::cout << "Kh criterion: "
+    		<< Kh_pc(p) << std::endl;
+    }
+  }
+  else {
+    if(period == 2 || period == 3) {
+      std::cout << "Sorry, the criterion doesn't work for period "
+		<< period << "...\n";
+      exit(EXIT_FAILURE);
+    }
+    auto result = std::find(primes_list.begin(), primes_list.end(), period);
+    if(result == primes_list.end()) {
+      std::cout << "For now you can only check periodicity for primes up to 19..." << "\n";
+      exit(EXIT_FAILURE);
+    }
+    if(periodicity_test == "Przytycki") {
+      Przytycki_periodicity_checker P_pc(compute_jones(kd), knot_name);
+      std::cout << P_pc(period) << std::endl;
+    }
+    else if(periodicity_test == "Kh") {
+      Kh_periodicity_checker Kh_pc(kd, std::string(knot_name), field);
+      std::cout << Kh_pc(period) << std::endl;
+    }
+    else {
+      std::cout << "Sorry, I don't recognize this option..." << "\n";
+      exit(EXIT_FAILURE);
+    }
+  }
 }

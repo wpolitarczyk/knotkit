@@ -9,16 +9,11 @@
 #include <tuple>
 
 extern bool verbose;
-extern const char* knot;
 
-extern std::string periodicity_test;
+constexpr std::array<int, 6> primes_list = {5, 7, 11, 13, 17, 19};
 
-const std::vector<int> primes_list = {5, 7, 11, 13, 17, 19};
-
-enum class Test_Result { MAYBE, NO, NO_NONTRIVIAL_DECOMP };
-
-const unsigned eval_index = 1;
-const unsigned invert_index = 2;
+constexpr unsigned eval_index = 1;
+constexpr unsigned invert_index = 2;
 
 template<class T>
 class periodic_congruence_checker {
@@ -35,9 +30,9 @@ protected:
   }
 
 public:
-  periodic_congruence_checker(int pprime = 5,
+  periodic_congruence_checker(int p = 5,
 			      unsigned ind = invert_index) :
-    prime(pprime),
+    prime(p),
     index(ind)
     {}
 
@@ -47,7 +42,6 @@ public:
   
   bool operator() (const polynomial& pol) const {
     return reduce(prepare_polynomial(pol)) == 0;
-    // return reduce(prepare_polynomial(pol)) == 0;
   }
 };
 
@@ -62,8 +56,6 @@ periodic_congruence_checker<T>::reduce(const multivariate_laurentpoly<T>& pol) c
     monomial mon = monomial(VARIABLE, index, c);
     res += polynomial(i.val(), mon);
   }
-  // if(verbose)
-  //   std::cout << "res = " << res << "\n";
   return res;
 }
 
@@ -72,9 +64,11 @@ class Przytycki_periodicity_checker {
   using monomial = multivariate_laurent_monomial;
 
   polynomial jones_pol;
+  std::string knot_name;
 
  public:
-  Przytycki_periodicity_checker(polynomial j) : jones_pol(j) {}
+  Przytycki_periodicity_checker(polynomial j, std::string knot_n) :
+    jones_pol(j), knot_name(knot_n) {}
     
   ~Przytycki_periodicity_checker() {}
 
@@ -117,11 +111,15 @@ class Kh_periodicity_checker {
   unsigned ev_index;
   unsigned index;
 
+  enum class Test_Result { MAYBE, NO, NO_NONTRIVIAL_DECOMP };
+
   polynomial khp, leep;
   std::vector<polynomial> quot, mul, quotients, remainders;
 
   std::string knot_name;
+  std::string field;
 
+  template<typename R>
   std::vector<polynomial> compute_knot_polynomials(knot_diagram& kd);
   void compute_quot(const std::vector<polynomial>& lee_ss_polynomials);
   polynomial_tuple
@@ -131,14 +129,7 @@ class Kh_periodicity_checker {
   Test_Result check(const polynomial_tuple& polynomials, int period) const;
 
  public:
-  Kh_periodicity_checker(knot_diagram& kd, std::string knot_n) :
-    knot_name(knot_n) {
-    ev_index = 1;
-    index = 2;
-    quot = std::vector<polynomial>();
-    mul = std::vector<polynomial>();
-    compute_quot(compute_knot_polynomials(kd));
-  }
+  Kh_periodicity_checker(knot_diagram& kd, std::string knot_n, std::string f);
 
   ~Kh_periodicity_checker() {}
 
@@ -152,5 +143,8 @@ class Kh_periodicity_checker {
     return leep;
   }
 };
+
+void check_periodicity(knot_diagram& kd, const std::string knot_name,
+		       int period = 5, const std::string field = "Z2");
 
 #endif // _KNOTKIT_PERIODICITY_H
